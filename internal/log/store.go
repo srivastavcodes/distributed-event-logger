@@ -54,6 +54,10 @@ func (st *store) Append(data []byte) (n uint64, pos uint64, err error) {
 	return uint64(wd), pos, nil
 }
 
+// Read retrieves data from the store at the given position.
+// First reads the 8-byte length prefix, then reads that many data bytes.
+//
+// Returns the data and any error.
 func (st *store) Read(pos uint64) ([]byte, error) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
@@ -72,6 +76,10 @@ func (st *store) Read(pos uint64) ([]byte, error) {
 	return b, nil
 }
 
+// ReadAt reads len(p) bytes into p starting at offset off.
+// Flushes the buffer first to ensure data consistency.
+//
+// Returns number of bytes read and any error.
 func (st *store) ReadAt(p []byte, off int64) (int, error) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
