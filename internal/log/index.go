@@ -72,6 +72,9 @@ func (idx *index) Read(in int64) (out uint32, pos uint64, err error) {
 	return out, pos, nil
 }
 
+// Write appends a new index entry with the given offset and position.
+//
+// Returns io.EOF for insufficient space in the memory-mapped file.
 func (idx *index) Write(off uint32, pos uint64) error {
 	if uint64(len(idx.mmap)) < idx.size+entWidth {
 		return io.EOF
