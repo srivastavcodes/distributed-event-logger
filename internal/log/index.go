@@ -10,7 +10,7 @@ import (
 var (
 	offWidth uint64 = 4
 	posWidth uint64 = 8
-	entWidth uint64 = offWidth + posWidth
+	entWidth        = offWidth + posWidth
 )
 
 type index struct {

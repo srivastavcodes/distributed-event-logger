@@ -13,7 +13,6 @@
         <option value="reassign" />
         <option value="perfsprint" />
         <option value="gosimple" />
-        <option value="prealloc" />
       </list>
     </option>
     <option name="linterSelected" value="true" />
