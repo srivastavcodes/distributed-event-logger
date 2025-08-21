@@ -55,6 +55,7 @@ func newSegment(dir string, baseOffset uint64, config Config) (*segment, error) 
 }
 
 // Append stores a new record in the segment and assigns it the next available offset.
+//
 // It serializes the record to protobuf format and writes it to the store file.
 // The record's position is indexed using its relative offset for fast retrieval.
 // This allows the log to maintain sequential ordering while enabling efficient lookups.
