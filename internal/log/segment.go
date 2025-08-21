@@ -6,7 +6,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 type segment struct {
@@ -93,9 +93,9 @@ func (seg *segment) Read(off uint64) (*api.Record, error) {
 	if err != nil {
 		return nil, err
 	}
-	var record *api.Record
-	err = proto.Unmarshal(data, record)
-	return record, err
+	var record api.Record
+	err = proto.Unmarshal(data, &record)
+	return &record, err
 }
 
 func (seg *segment) IsMaxed() bool {
@@ -131,8 +131,5 @@ func (seg *segment) Remove() error {
 //
 // We take the lesser multiple to make sure we stay under the user's disk capacity.
 func nearestMultiple(n1, n2 uint64) uint64 {
-	if n1 >= 0 {
-		return (n1 / n2) * n2
-	}
 	return ((n1 - n2 + 1) / n2) * n2
 }
