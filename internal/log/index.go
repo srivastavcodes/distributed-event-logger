@@ -26,19 +26,19 @@ func (idx *index) Name() string {
 // newIndex creates a new index backed by a memory-mapped file. It truncates the
 // file to the configured max size and maps it into memory for efficient random
 // access to offset/position pairs.
-func newIndex(file *os.File, config Config) (*index, error) {
-	idx := &index{file: file}
+func newIndex(f *os.File, config Config) (*index, error) {
+	idx := &index{file: f}
 
-	f, err := os.Stat(file.Name())
+	file, err := os.Stat(f.Name())
 	if err != nil {
 		return nil, err
 	}
-	idx.size = uint64(f.Size())
+	idx.size = uint64(file.Size())
 	if err = os.Truncate(f.Name(), int64(config.Segment.MaxIndexBytes)); err != nil {
 		return nil, err
 	}
-	// Map the entire file into virtual memory for direct byte-level access. MAP_SHARED
-	// makes changes visible to all processes mapping the same file.
+	// Map the entire f into virtual memory for direct byte-level access. MAP_SHARED
+	// makes changes visible to all processes mapping the same f.
 	// Changes to the mapped memory are automatically synced to disk by the OS.
 	idx.mmap, err = gommap.Map(idx.file.Fd(), gommap.PROT_READ|gommap.PROT_WRITE, gommap.MAP_SHARED)
 	if err != nil {

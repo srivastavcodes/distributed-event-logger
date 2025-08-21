@@ -19,17 +19,17 @@ type store struct {
 	buf  *bufio.Writer
 }
 
-func newStore(file *os.File) (*store, error) {
-	f, err := os.Stat(file.Name())
+func newStore(f *os.File) (*store, error) {
+	file, err := os.Stat(f.Name())
 	if err != nil {
 		return nil, err
 	}
-	size := uint64(f.Size())
+	size := uint64(file.Size())
 
 	return &store{
-		File: file,
+		File: f,
 		size: size,
-		buf:  bufio.NewWriter(file),
+		buf:  bufio.NewWriter(f),
 	}, nil
 }
 
