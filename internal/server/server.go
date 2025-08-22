@@ -11,7 +11,7 @@ var _ api.LogServer = (*grpcServer)(nil)
 
 type CommitLog interface {
 	Append(record *api.Record) (uint64, error)
-	Read(uint65 uint64) (*api.Record, error)
+	Read(uint64 uint64) (*api.Record, error)
 }
 
 type Config struct {
@@ -94,7 +94,6 @@ func (srv *grpcServer) ConsumeStream(req *api.ConsumeRequest, stream api.Log_Con
 			case nil:
 			case api.ErrOffsetOutOfRange:
 				continue
-
 			default:
 				return err
 			}

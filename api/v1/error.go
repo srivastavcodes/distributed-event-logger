@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
@@ -11,9 +12,8 @@ type ErrOffsetOutOfRange struct {
 	Offset uint64
 }
 
-func (eor ErrOffsetOutOfRange) GrpcStatus() *status.Status {
-	sts := status.New(
-		404,
+func (eor ErrOffsetOutOfRange) GRPCStatus() *status.Status {
+	sts := status.New(codes.NotFound,
 		fmt.Sprintf("offset out of range: %d", eor.Offset),
 	)
 	msg := fmt.Sprintf("The requested offset is outside the log's range %d", eor.Offset)
@@ -30,8 +30,8 @@ func (eor ErrOffsetOutOfRange) GrpcStatus() *status.Status {
 }
 
 func (eor ErrOffsetOutOfRange) Error() string {
-	if grpcErr := eor.GrpcStatus().Err(); grpcErr != nil {
+	if grpcErr := eor.GRPCStatus().Err(); grpcErr != nil {
 		return grpcErr.Error()
 	}
-	return fmt.Sprintf("offset out of range: %d", eor.Offset)
+	return fmt.Sprintf("requested offset out of range: %d", eor.Offset)
 }
