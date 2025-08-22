@@ -15,8 +15,7 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	for scenario, fn := range map[string]func(
-		t *testing.T,
+	for scenario, fn := range map[string]func(t *testing.T,
 		client api.LogClient,
 		config *Config,
 	){
@@ -35,13 +34,13 @@ func TestServer(t *testing.T) {
 func setupTest(t *testing.T, fn func(*Config)) (client api.LogClient, config *Config, teardown func()) {
 	t.Helper()
 
-	l, err := net.Listen("tcp", ":0")
+	listener, err := net.Listen("tcp", ":0")
 	require.NoError(t, err)
 
 	clientOptions := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
-	cc, err := grpc.NewClient(l.Addr().String(), clientOptions...)
+	cc, err := grpc.NewClient(listener.Addr().String(), clientOptions...)
 	require.NoError(t, err)
 
 	dir, err := os.MkdirTemp("", "server-test")
@@ -60,7 +59,7 @@ func setupTest(t *testing.T, fn func(*Config)) (client api.LogClient, config *Co
 	require.NoError(t, err)
 
 	go func() {
-		_ = server.Serve(l)
+		_ = server.Serve(listener)
 	}()
 
 	client = api.NewLogClient(cc)
@@ -68,7 +67,7 @@ func setupTest(t *testing.T, fn func(*Config)) (client api.LogClient, config *Co
 	return client, config, func() {
 		server.Stop()
 		cc.Close()
-		l.Close()
+		listener.Close()
 		_ = clog.Remove()
 	}
 }
@@ -76,21 +75,16 @@ func setupTest(t *testing.T, fn func(*Config)) (client api.LogClient, config *Co
 func testProduceConsume(t *testing.T, client api.LogClient, _ *Config) {
 	ctx := context.Background()
 
-	want := &api.Record{
-		Values: []byte("hello world"),
-	}
-	produce, err := client.Produce(
-		ctx,
-		&api.ProduceRequest{
-			Record: want,
-		},
-	)
+	want := &api.Record{Values: []byte("hello world")}
+	preq := &api.ProduceRequest{Record: want}
+
+	produce, err := client.Produce(ctx, preq)
 	require.NoError(t, err)
 
-	consume, err := client.Consume(ctx, &api.ConsumeRequest{
-		Offset: produce.Offset,
-	})
+	creq := &api.ConsumeRequest{Offset: produce.Offset}
+	consume, err := client.Consume(ctx, creq)
 	require.NoError(t, err)
+
 	require.Equal(t, want.Values, consume.Record.Values)
 	require.Equal(t, want.Offset, consume.Record.Offset)
 }
@@ -98,21 +92,23 @@ func testProduceConsume(t *testing.T, client api.LogClient, _ *Config) {
 func testConsumePastBoundary(t *testing.T, client api.LogClient, _ *Config) {
 	ctx := context.Background()
 
-	produce, err := client.Produce(ctx, &api.ProduceRequest{
+	preq := &api.ProduceRequest{
 		Record: &api.Record{
 			Values: []byte("hello world"),
 		},
-	})
+	}
+	produce, err := client.Produce(ctx, preq)
 	require.NoError(t, err)
 
-	consume, err := client.Consume(ctx, &api.ConsumeRequest{
-		Offset: produce.Offset + 1,
-	})
+	creq := &api.ConsumeRequest{Offset: produce.Offset + 1}
+	consume, err := client.Consume(ctx, creq)
 	if consume != nil {
 		t.Fatal("consume not nil")
 	}
+	var grpcErr api.ErrOffsetOutOfRange
+
 	got := status.Code(err)
-	want := status.Code(api.ErrOffsetOutOfRange{}.GRPCStatus().Err())
+	want := status.Code(grpcErr.GRPCStatus().Err())
 
 	if got != want {
 		t.Fatalf("got err: %v, want: %v", got, want)
@@ -134,36 +130,32 @@ func testProduceConsumeStream(t *testing.T, client api.LogClient, _ *Config) {
 		require.NoError(t, err)
 
 		for offset, record := range records {
-			err = stream.Send(&api.ProduceRequest{
-				Record: record,
-			})
+			preq := &api.ProduceRequest{Record: record}
+			err = stream.Send(preq)
 			require.NoError(t, err)
+
 			res, err := stream.Recv()
 			require.NoError(t, err)
+
 			if res.Offset != uint64(offset) {
-				t.Fatalf(
-					"got offset: %d, want: %d",
-					res.Offset,
-					offset,
-				)
+				t.Fatalf("got offset: %d, want: %d", res.Offset, offset)
 			}
 		}
 
 	}
 	{
-		stream, err := client.ConsumeStream(
-			ctx,
-			&api.ConsumeRequest{Offset: 0},
-		)
+		creq := &api.ConsumeRequest{Offset: 0}
+		stream, err := client.ConsumeStream(ctx, creq)
 		require.NoError(t, err)
 
 		for i, record := range records {
-			res, err := stream.Recv()
-			require.NoError(t, err)
-			require.Equal(t, res.Record, &api.Record{
+			rec := &api.Record{
 				Values: record.Values,
 				Offset: uint64(i),
-			})
+			}
+			res, err := stream.Recv()
+			require.NoError(t, err)
+			require.Equal(t, res.Record, rec)
 		}
 	}
 }
