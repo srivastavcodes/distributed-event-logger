@@ -2,6 +2,7 @@ package server
 
 import (
 	api "Proglog/api/v1"
+	"Proglog/internal/config"
 	"Proglog/internal/log"
 	"context"
 	"net"
@@ -10,7 +11,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 )
 
@@ -24,24 +25,38 @@ func TestServer(t *testing.T) {
 		"consume past log boundary fails":                    testConsumePastBoundary,
 	} {
 		t.Run(scenario, func(t *testing.T) {
-			client, config, teardown := setupTest(t, nil)
+			client, cfg, teardown := setupTest(t, nil)
 			defer teardown()
-			fn(t, client, config)
+			fn(t, client, cfg)
 		})
 	}
 }
 
-func setupTest(t *testing.T, fn func(*Config)) (client api.LogClient, config *Config, teardown func()) {
+func setupTest(t *testing.T, fn func(*Config)) (client api.LogClient, cfg *Config, teardown func()) {
 	t.Helper()
 
-	listener, err := net.Listen("tcp", ":0")
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
-	clientOptions := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	}
-	cc, err := grpc.NewClient(listener.Addr().String(), clientOptions...)
+	clientTLSConfig, err := config.SetupTLSConfig(config.TLSConfig{
+		CAFile: config.CAFile,
+	})
 	require.NoError(t, err)
+
+	clientCred := credentials.NewTLS(clientTLSConfig)
+	cc, err := grpc.NewClient(listener.Addr().String(), grpc.WithTransportCredentials(clientCred))
+	require.NoError(t, err)
+
+	client = api.NewLogClient(cc)
+
+	serverTLSConfig, err := config.SetupTLSConfig(config.TLSConfig{
+		CertFile:   config.ServerCertFile,
+		CAFile:     config.CAFile,
+		KeyFile:    config.ServerKeyFile,
+		ServerAddr: listener.Addr().String(),
+	})
+	require.NoError(t, err)
+	serverCreds := credentials.NewTLS(serverTLSConfig)
 
 	dir, err := os.MkdirTemp("", "server-test")
 	require.NoError(t, err)
@@ -49,22 +64,18 @@ func setupTest(t *testing.T, fn func(*Config)) (client api.LogClient, config *Co
 	clog, err := log.NewLog(dir, log.Config{})
 	require.NoError(t, err)
 
-	config = &Config{
-		CommitLog: clog,
-	}
+	cfg = &Config{CommitLog: clog}
 	if fn != nil {
-		fn(config)
+		fn(cfg)
 	}
-	server, err := NewGrpcServer(config)
+	server, err := NewGRPCServer(cfg, grpc.Creds(serverCreds))
 	require.NoError(t, err)
 
 	go func() {
 		_ = server.Serve(listener)
 	}()
 
-	client = api.NewLogClient(cc)
-
-	return client, config, func() {
+	return client, cfg, func() {
 		server.Stop()
 		cc.Close()
 		listener.Close()
