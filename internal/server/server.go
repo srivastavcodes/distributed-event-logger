@@ -4,7 +4,18 @@ import (
 	api "Proglog/api/v1"
 	"context"
 
+	grpcAuth "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/auth"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
+)
+
+const (
+	objectWildcard = "*"
+	produceAction  = "produce"
+	consumeAction  = "consume"
 )
 
 var _ api.LogServer = (*grpcServer)(nil)
@@ -14,11 +25,24 @@ type CommitLog interface {
 	Read(uint64 uint64) (*api.Record, error)
 }
 
+type Authorizer interface {
+	Authorize(subject, object, action string) error
+}
+
 type Config struct {
-	CommitLog CommitLog
+	CommitLog  CommitLog
+	Authorizer Authorizer
 }
 
 func NewGRPCServer(config *Config, opts ...grpc.ServerOption) (*grpc.Server, error) {
+	opts = append(opts,
+		grpc.ChainStreamInterceptor(
+			grpcAuth.StreamServerInterceptor(authenticate),
+		),
+		grpc.ChainUnaryInterceptor(
+			grpcAuth.UnaryServerInterceptor(authenticate),
+		),
+	)
 	gsrv := grpc.NewServer(opts...)
 	srv, err := newgrpcServer(config)
 	if err != nil {
@@ -42,7 +66,10 @@ func newgrpcServer(config *Config) (srv *grpcServer, err error) {
 
 // Produce appends a record to the log. It's the implementation of the
 // Produce RPC defined in the `api/v1/log.proto` file.
-func (srv *grpcServer) Produce(_ context.Context, req *api.ProduceRequest) (*api.ProduceResponse, error) {
+func (srv *grpcServer) Produce(ctx context.Context, req *api.ProduceRequest) (*api.ProduceResponse, error) {
+	if err := srv.Authorizer.Authorize(subject(ctx), objectWildcard, produceAction); err != nil {
+		return nil, err
+	}
 	offset, err := srv.CommitLog.Append(req.Record)
 	if err != nil {
 		return nil, err
@@ -52,7 +79,10 @@ func (srv *grpcServer) Produce(_ context.Context, req *api.ProduceRequest) (*api
 
 // Consume reads a record from the log. It's the implementation of the
 // Consume RPC defined in the `api/v1/log.proto` file.
-func (srv *grpcServer) Consume(_ context.Context, req *api.ConsumeRequest) (*api.ConsumeResponse, error) {
+func (srv *grpcServer) Consume(ctx context.Context, req *api.ConsumeRequest) (*api.ConsumeResponse, error) {
+	if err := srv.Authorizer.Authorize(subject(ctx), objectWildcard, consumeAction); err != nil {
+		return nil, err
+	}
 	record, err := srv.CommitLog.Read(req.Offset)
 	if err != nil {
 		return nil, err
@@ -103,4 +133,32 @@ func (srv *grpcServer) ConsumeStream(req *api.ConsumeRequest, stream api.Log_Con
 			req.Offset++
 		}
 	}
+}
+
+// authenticate extracts the client's certificate information from the gRPC context
+// and adds the subject (CommonName) to the context for authorization purposes.
+// It returns an error if peer information cannot be retrieved from the context.
+func authenticate(ctx context.Context) (context.Context, error) {
+	pr, ok := peer.FromContext(ctx)
+	if !ok {
+		return ctx, status.New(codes.Unknown, "couldn't find peer info").Err()
+	}
+	if pr.AuthInfo == nil {
+		return context.WithValue(ctx, subjectContextKey{}, ""), nil
+	}
+	tlsInfo := pr.AuthInfo.(credentials.TLSInfo)
+	subject := tlsInfo.State.VerifiedChains[0][0].Subject.CommonName
+
+	ctx = context.WithValue(ctx, subjectContextKey{}, subject)
+
+	return ctx, nil
+}
+
+type subjectContextKey struct{}
+
+// subject extracts the authenticated client's identity from the context.
+// It retrieves the CommonName from the client's TLS certificate that was
+// previously stored by the authenticate function during request processing.
+func subject(ctx context.Context) string {
+	return ctx.Value(subjectContextKey{}).(string)
 }
