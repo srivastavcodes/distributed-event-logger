@@ -33,6 +33,7 @@ require (
 	github.com/miekg/dns v1.1.56 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
+	github.com/travisjeffery/go-dynaport v1.0.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/mod v0.26.0 // indirect
