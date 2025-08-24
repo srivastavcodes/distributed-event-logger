@@ -3,8 +3,12 @@ package server
 import (
 	"context"
 	api "proglog/api/v1"
+	"time"
 
 	grpcAuth "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/auth"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -34,22 +38,68 @@ type Config struct {
 	Authorizer Authorizer
 }
 
-func NewGRPCServer(config *Config, opts ...grpc.ServerOption) (*grpc.Server, error) {
-	opts = append(opts,
+func NewGRPCServer(config *Config, grpcOpts ...grpc.ServerOption) (*grpc.Server, error) {
+	logger := zap.L().Named("server")
+	defer logger.Sync()
+
+	streamLog := logging.StreamServerInterceptor(
+		InterceptorLogger(logger),
+		logging.WithDurationField(func(duration time.Duration) logging.Fields {
+			return logging.Fields{"grpc.time_ns", duration.Nanoseconds()}
+		}),
+	)
+	unaryLog := logging.UnaryServerInterceptor(
+		InterceptorLogger(logger),
+		logging.WithDurationField(func(duration time.Duration) logging.Fields {
+			return logging.Fields{"grpc.time_ns", duration.Nanoseconds()}
+		}),
+	)
+	grpcOpts = append(grpcOpts,
 		grpc.ChainStreamInterceptor(
+			streamLog,
 			grpcAuth.StreamServerInterceptor(authenticate),
 		),
 		grpc.ChainUnaryInterceptor(
+			unaryLog,
 			grpcAuth.UnaryServerInterceptor(authenticate),
 		),
 	)
-	gsrv := grpc.NewServer(opts...)
+	gsrv := grpc.NewServer(grpcOpts...)
 	srv, err := newgrpcServer(config)
 	if err != nil {
 		return nil, err
 	}
 	api.RegisterLogServer(gsrv, srv)
 	return gsrv, nil
+}
+
+func InterceptorLogger(logger *zap.Logger) logging.Logger {
+	return logging.LoggerFunc(func(ctx context.Context, lvl logging.Level, msg string, fields ...any) {
+		f := make([]zap.Field, 0, len(fields)/2)
+
+		for i := 0; i < len(fields); i += 2 {
+			if i+1 < len(fields) {
+				if key, ok := fields[i].(string); ok {
+					f = append(f, zap.Any(key, fields[i+1]))
+				}
+			}
+		}
+		var zapLevel zapcore.Level
+
+		switch lvl {
+		case logging.LevelDebug:
+			zapLevel = zapcore.DebugLevel
+		case logging.LevelInfo:
+			zapLevel = zapcore.InfoLevel
+		case logging.LevelWarn:
+			zapLevel = zapcore.WarnLevel
+		case logging.LevelError:
+			zapLevel = zapcore.ErrorLevel
+		default:
+			zapLevel = zapcore.InfoLevel
+		}
+		logger.Log(zapLevel, msg, f...)
+	})
 }
 
 type grpcServer struct {
