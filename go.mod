@@ -1,4 +1,4 @@
-module Proglog
+module proglog
 
 go 1.24
 

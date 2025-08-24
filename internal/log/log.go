@@ -1,10 +1,10 @@
 package log
 
 import (
-	api "Proglog/api/v1"
 	"io"
 	"os"
 	"path"
+	api "proglog/api/v1"
 	"slices"
 	"strconv"
 	"strings"

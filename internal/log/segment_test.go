@@ -1,9 +1,9 @@
 package log
 
 import (
-	api "Proglog/api/v1"
 	"io"
 	"os"
+	api "proglog/api/v1"
 	"testing"
 
 	"github.com/stretchr/testify/require"

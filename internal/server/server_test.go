@@ -1,13 +1,13 @@
 package server
 
 import (
-	api "Proglog/api/v1"
-	"Proglog/internal/auth"
-	"Proglog/internal/config"
-	"Proglog/internal/log"
 	"context"
 	"net"
 	"os"
+	api "proglog/api/v1"
+	"proglog/internal/auth"
+	"proglog/internal/config"
+	"proglog/internal/log"
 	"testing"
 
 	"github.com/stretchr/testify/require"

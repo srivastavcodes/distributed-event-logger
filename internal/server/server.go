@@ -1,8 +1,8 @@
 package server
 
 import (
-	api "Proglog/api/v1"
 	"context"
+	api "proglog/api/v1"
 
 	grpcAuth "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/auth"
 	"google.golang.org/grpc"
