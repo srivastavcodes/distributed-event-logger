@@ -56,6 +56,9 @@ func newIndex(file *os.File, config Config) (*index, error) {
 	return idx, nil
 }
 
+// Close flushes the contents of the mmap and the in-memory file to the
+// stable storage and truncates the file to the index's actual size.
+// The file is closed.
 func (i *index) Close() error {
 	if err := i.mmap.Flush(); err != nil {
 		return err
