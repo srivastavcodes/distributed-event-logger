@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/Proglog.iml" filepath="$PROJECT_DIR$/.idea/Proglog.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/distributed-event-logger.iml" filepath="$PROJECT_DIR$/.idea/distributed-event-logger.iml" />
     </modules>
   </component>
 </project>
