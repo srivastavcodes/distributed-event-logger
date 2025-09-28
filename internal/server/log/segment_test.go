@@ -10,7 +10,7 @@ import (
 )
 
 func TestSegment(t *testing.T) {
-	dir, _ := os.MkdirTemp("", "segment_test")
+	dir, _ := os.MkdirTemp("./", "segment_test")
 	defer os.RemoveAll(dir)
 
 	var config Config
