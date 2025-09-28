@@ -61,9 +61,8 @@ func (l *Log) setup() error {
 		)
 		baseOffsets = append(baseOffsets, offset)
 	}
-	slices.SortFunc(baseOffsets, func(a, b uint64) int {
-		return cmp.Compare(a, b)
-	})
+	slices.SortFunc(baseOffsets, cmp.Compare)
+
 	for i := 0; i < len(baseOffsets); i++ {
 		err = l.newSegment(baseOffsets[i])
 		if err != nil {
