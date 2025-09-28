@@ -1,5 +1,5 @@
 compile:
-	protoc proto/v1/*.proto \
+	protoc protolog/v1/*.proto \
 		--go_out=. \
 		--go_opt=paths=source_relative \
 		--proto_path=.

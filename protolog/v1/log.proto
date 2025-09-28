@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package log.v1;
 
-option go_package = "github.com/srivastavcodes/distributed-event-logger/proto";
+option go_package = "github.com/srivastavcodes/distributed-event-logger/protolog";
 
 message Record {
   bytes value = 1;
