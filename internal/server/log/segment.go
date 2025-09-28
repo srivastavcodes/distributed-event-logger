@@ -77,7 +77,7 @@ func newSegment(dir string, baseOffset uint64, config Config) (*segment, error) 
 }
 
 // Append writes the record to the segment and returns the newly appended
-// record's offset. The log returns the offset to the API response.
+// record's offset.
 func (s *segment) Append(record *protolog.Record) (off uint64, err error) {
 	var cur = s.nextOffset
 	record.Offset = cur

@@ -85,6 +85,8 @@ func (l *Log) setup() error {
 // Append appends a record to the active segment of the log. A new segment
 // is created if current segment is at its max size.
 // This method is thread-safe with rwMutex synchronization.
+//
+// Returns the offset of the newly appended record in the Log.
 func (l *Log) Append(record *protolog.Record) (uint64, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
