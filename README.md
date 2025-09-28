@@ -2,16 +2,28 @@
 
 > **Work in Progress**: Building a distributed event-log service.
 
-## Progress
+## What We've Built So Far
 
-### ☑️ Done
-- [x] Protobufs
+### Core Storage Engine
 
-### 🚧 Current
-- [x] Log package
+**Store Layer**: Low-level file operations with buffered writes for performance
 
-### 📅 Future Impl
-- gRPC impl, TLS security, observability, clustering with Raft, service discovery, Kubernetes deployment
+- Record format: 8-byte length header + variable-length data
+- Thread-safe operations with mutex protection
+- Efficient append and read operations
+
+**Index Layer**: Memory-mapped file indexing for fast record lookups
+
+- Maps record offsets to file positions
+- Fixed-size entries (12 bytes: 4-byte offset + 8-byte position)
+- Pre-allocated file space with memory mapping for performance
+
+### Key Features Implemented
+
+- **Binary Encoding**: Big-endian format for cross-platform compatibility
+- **Buffered I/O**: Reduces system calls for better performance with frequent writes
+- **Memory Mapping**: Fast index access using mmap for efficient lookups
+- **Thread Safety**: Mutex-protected operations for concurrent access
 
 ## Quick Start
 
@@ -40,7 +52,7 @@ curl "http://localhost:8080/log?offset=0"
 ```
 ├── cmd/server/          # Entry point
 ├── internal/log/        # Storage (log, segments, index, store)
-└── api/v1/              # Future gRPC definitions
+└── proto/v1/            # Future gRPC definitions
 ```
 
 ## Goal
