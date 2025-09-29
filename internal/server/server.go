@@ -3,9 +3,22 @@ package server
 import (
 	"context"
 	"errors"
+	"google.golang.org/grpc"
 
 	"github.com/srivastavcodes/distributed-event-logger/protolog/v1"
 )
+
+func NewGRPCServer(config *Config) (*grpc.Server, error) {
+	var (
+		gsrv     = grpc.NewServer()
+		srv, err = newGrpcServer(config)
+	)
+	if err != nil {
+		return nil, err
+	}
+	protolog.RegisterLogServer(gsrv, srv)
+	return gsrv, nil
+}
 
 type CommitLog interface {
 	Append(*protolog.Record) (uint64, error)
