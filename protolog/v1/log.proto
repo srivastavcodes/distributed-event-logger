@@ -6,9 +6,10 @@ option go_package = "github.com/srivastavcodes/distributed-event-logger/protolog
 
 service Log {
   rpc Produce(ProduceRequest) returns (ProduceResponse) {}
+  rpc ProduceStream(stream ProduceRequest) returns (stream ProduceResponse) {}
+
   rpc Consume(ConsumeRequest) returns (ConsumeResponse) {}
   rpc ConsumeStream(ConsumeRequest) returns (stream ConsumeResponse) {}
-  rpc ProduceStream(stream ProduceRequest) returns (stream ProduceResponse) {}
 }
 
 message ProduceRequest {

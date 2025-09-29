@@ -266,10 +266,10 @@ const file_protolog_v1_log_proto_rawDesc = "" +
 	"\x05value\x18\x01 \x01(\fR\x05value\x12\x16\n" +
 	"\x06offset\x18\x02 \x01(\x04R\x06offset2\x8f\x02\n" +
 	"\x03Log\x12<\n" +
-	"\aProduce\x12\x16.log.v1.ProduceRequest\x1a\x17.log.v1.ProduceResponse\"\x00\x12<\n" +
+	"\aProduce\x12\x16.log.v1.ProduceRequest\x1a\x17.log.v1.ProduceResponse\"\x00\x12F\n" +
+	"\rProduceStream\x12\x16.log.v1.ProduceRequest\x1a\x17.log.v1.ProduceResponse\"\x00(\x010\x01\x12<\n" +
 	"\aConsume\x12\x16.log.v1.ConsumeRequest\x1a\x17.log.v1.ConsumeResponse\"\x00\x12D\n" +
-	"\rConsumeStream\x12\x16.log.v1.ConsumeRequest\x1a\x17.log.v1.ConsumeResponse\"\x000\x01\x12F\n" +
-	"\rProduceStream\x12\x16.log.v1.ProduceRequest\x1a\x17.log.v1.ProduceResponse\"\x00(\x010\x01B=Z;github.com/srivastavcodes/distributed-event-logger/protologb\x06proto3"
+	"\rConsumeStream\x12\x16.log.v1.ConsumeRequest\x1a\x17.log.v1.ConsumeResponse\"\x000\x01B=Z;github.com/srivastavcodes/distributed-event-logger/protologb\x06proto3"
 
 var (
 	file_protolog_v1_log_proto_rawDescOnce sync.Once
@@ -295,13 +295,13 @@ var file_protolog_v1_log_proto_depIdxs = []int32{
 	4, // 0: log.v1.ProduceRequest.record:type_name -> log.v1.Record
 	4, // 1: log.v1.ConsumeResponse.record:type_name -> log.v1.Record
 	0, // 2: log.v1.Log.Produce:input_type -> log.v1.ProduceRequest
-	2, // 3: log.v1.Log.Consume:input_type -> log.v1.ConsumeRequest
-	2, // 4: log.v1.Log.ConsumeStream:input_type -> log.v1.ConsumeRequest
-	0, // 5: log.v1.Log.ProduceStream:input_type -> log.v1.ProduceRequest
+	0, // 3: log.v1.Log.ProduceStream:input_type -> log.v1.ProduceRequest
+	2, // 4: log.v1.Log.Consume:input_type -> log.v1.ConsumeRequest
+	2, // 5: log.v1.Log.ConsumeStream:input_type -> log.v1.ConsumeRequest
 	1, // 6: log.v1.Log.Produce:output_type -> log.v1.ProduceResponse
-	3, // 7: log.v1.Log.Consume:output_type -> log.v1.ConsumeResponse
-	3, // 8: log.v1.Log.ConsumeStream:output_type -> log.v1.ConsumeResponse
-	1, // 9: log.v1.Log.ProduceStream:output_type -> log.v1.ProduceResponse
+	1, // 7: log.v1.Log.ProduceStream:output_type -> log.v1.ProduceResponse
+	3, // 8: log.v1.Log.Consume:output_type -> log.v1.ConsumeResponse
+	3, // 9: log.v1.Log.ConsumeStream:output_type -> log.v1.ConsumeResponse
 	6, // [6:10] is the sub-list for method output_type
 	2, // [2:6] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
