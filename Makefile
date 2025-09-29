@@ -29,4 +29,4 @@ compile:
 
 .PHONY: test
 test:
-	go test -race ./..
+	go test -race -v $(PKG)

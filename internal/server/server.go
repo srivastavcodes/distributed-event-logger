@@ -8,9 +8,9 @@ import (
 	"github.com/srivastavcodes/distributed-event-logger/protolog/v1"
 )
 
-func NewGRPCServer(config *Config) (*grpc.Server, error) {
+func NewGRPCServer(config *Config, opts ...grpc.ServerOption) (*grpc.Server, error) {
 	var (
-		gsrv     = grpc.NewServer()
+		gsrv     = grpc.NewServer(opts...)
 		srv, err = newGrpcServer(config)
 	)
 	if err != nil {

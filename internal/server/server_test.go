@@ -2,11 +2,12 @@ package server
 
 import (
 	"context"
+	"github.com/srivastavcodes/distributed-event-logger/internal/config"
 	"github.com/srivastavcodes/distributed-event-logger/internal/log"
 	"github.com/srivastavcodes/distributed-event-logger/protolog/v1"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 	"net"
 	"os"
@@ -21,22 +22,43 @@ func TestServer(t *testing.T) {
 	}
 	for scenario, fn := range collection {
 		t.Run(scenario, func(t *testing.T) {
-			client, config, teardown := setupTest(t, nil)
+			client, cfg, teardown := setupTest(t, nil)
 			defer teardown()
-			fn(t, client, config)
+			fn(t, client, cfg)
 		})
 	}
 }
 
-func setupTest(t *testing.T, fn func(config *Config)) (protolog.LogClient, *Config, func()) {
+func setupTest(t *testing.T, fn func(cfg *Config)) (protolog.LogClient, *Config, func()) {
 	t.Helper()
 
-	listener, err := net.Listen("tcp", ":0")
+	listener, err := net.Listen("tcp", "127.0.0.1:")
 	require.NoError(t, err)
 
-	clientOpts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-	conn, err := grpc.NewClient(listener.Addr().String(), clientOpts...)
+	// We configure the client's TLS credentials to use our CA as the client's
+	// Root CA (the CA it will use to verify the server). Then we tell the
+	// client to use those credentials for its connection.
+	clientTLSConfig, err := config.SetupTLSConfig(config.TLSConfig{
+		CAFile: "../../" + config.CAFile,
+	})
 	require.NoError(t, err)
+	var (
+		clientCreds = credentials.NewTLS(clientTLSConfig)
+		dialOptions = grpc.WithTransportCredentials(clientCreds)
+	)
+	conn, err := grpc.NewClient(listener.Addr().String(), dialOptions)
+	require.NoError(t, err)
+
+	client := protolog.NewLogClient(conn)
+
+	serverTLSConfig, err := config.SetupTLSConfig(config.TLSConfig{
+		CertFile:      "../../" + config.ServerCertFile,
+		KeyFile:       "../../" + config.ServerKeyFile,
+		CAFile:        "../../" + config.CAFile,
+		ServerAddress: listener.Addr().String(),
+	})
+	require.NoError(t, err)
+	serverCreds := credentials.NewTLS(serverTLSConfig)
 
 	dir, err := os.MkdirTemp("./", "server-test")
 	require.NoError(t, err)
@@ -44,17 +66,16 @@ func setupTest(t *testing.T, fn func(config *Config)) (protolog.LogClient, *Conf
 	clog, err := log.NewLog(dir, log.Config{})
 	require.NoError(t, err)
 
-	config := &Config{CommitLog: clog}
+	cfg := &Config{CommitLog: clog}
 	if fn != nil {
-		fn(config)
+		fn(cfg)
 	}
-	server, err := NewGRPCServer(config)
+	server, err := NewGRPCServer(cfg, grpc.Creds(serverCreds))
 	require.NoError(t, err)
 	go func() {
 		_ = server.Serve(listener)
 	}()
-	client := protolog.NewLogClient(conn)
-	return client, config, func() {
+	return client, cfg, func() {
 		server.Stop()
 		conn.Close()
 		listener.Close()
