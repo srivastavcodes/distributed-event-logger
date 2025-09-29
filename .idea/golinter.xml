@@ -2,7 +2,8 @@
 <project version="4">
   <component name="GoLinterSettings">
     <option name="customConfigFile" value="$USER_HOME$/.golangci.yaml" />
+    <option name="goLinterExe" value="$USER_HOME$/.local/share/go/bin/golangci-lint" />
     <option name="linterSelected" value="true" />
-    <option name="useCustomConfigFile" value="true" />
+    <option name="severity" value="Default" />
   </component>
 </project>

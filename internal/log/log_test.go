@@ -1,6 +1,7 @@
 package log
 
 import (
+	"errors"
 	"io"
 	"os"
 	"testing"
@@ -50,8 +51,12 @@ func testAppendRead(t *testing.T, log *Log) {
 
 func testOutOfRangeError(t *testing.T, log *Log) {
 	read, err := log.Read(1)
-	require.Error(t, err)
 	require.Nil(t, read)
+
+	var protoErr protolog.ErrOffsetOutOfRange
+	errors.As(err, &protoErr)
+
+	require.Equal(t, uint64(1), protoErr.Offset)
 }
 
 func testInitExisting(t *testing.T, log *Log) {

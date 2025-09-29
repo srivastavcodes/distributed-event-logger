@@ -2,7 +2,6 @@ package log
 
 import (
 	"cmp"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -114,7 +113,7 @@ func (l *Log) Read(off uint64) (*protolog.Record, error) {
 		}
 	}
 	if s == nil || s.nextOffset <= off {
-		return nil, fmt.Errorf("offset out of range: %d", off)
+		return nil, protolog.ErrOffsetOutOfRange{Offset: off}
 	}
 	// gets index entry from the segment's index, and read the data
 	// from the store.
