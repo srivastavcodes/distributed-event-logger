@@ -39,7 +39,9 @@ func setupTest(t *testing.T, fn func(cfg *Config)) (protolog.LogClient, *Config,
 	// Root CA (the CA it will use to verify the server). Then we tell the
 	// client to use those credentials for its connection.
 	clientTLSConfig, err := config.SetupTLSConfig(config.TLSConfig{
-		CAFile: "../../" + config.CAFile,
+		CertFile: "../../" + config.ClientCertFile,
+		KeyFile:  "../../" + config.ClientKeyFile,
+		CAFile:   "../../" + config.CAFile,
 	})
 	require.NoError(t, err)
 	var (
@@ -55,6 +57,7 @@ func setupTest(t *testing.T, fn func(cfg *Config)) (protolog.LogClient, *Config,
 		CertFile:      "../../" + config.ServerCertFile,
 		KeyFile:       "../../" + config.ServerKeyFile,
 		CAFile:        "../../" + config.CAFile,
+		Server:        true,
 		ServerAddress: listener.Addr().String(),
 	})
 	require.NoError(t, err)
