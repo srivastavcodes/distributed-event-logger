@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+
 	"github.com/srivastavcodes/distributed-event-logger/protolog/v1"
 	"google.golang.org/grpc"
 )

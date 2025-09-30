@@ -2,10 +2,11 @@ package log
 
 import (
 	"context"
+	"sync"
+
 	"github.com/rs/zerolog"
 	"github.com/srivastavcodes/distributed-event-logger/protolog/v1"
 	"google.golang.org/grpc"
-	"sync"
 )
 
 type Replicator struct {
