@@ -151,15 +151,14 @@ func (a *Agent) setupMembership() error {
 		DialOptions: opts,
 		LocalServer: client,
 	}
-	discfg := discovery.Config{
+	a.membership, err = discovery.NewMembership(a.replicator, discovery.Config{
 		NodeName: a.Config.NodeName,
 		BindAddr: a.Config.BindAddr,
 		Tags: map[string]string{
 			"rpc_addr": rpcAddr,
 		},
 		StartJoinAddrs: a.StartJoinAddrs,
-	}
-	a.membership, err = discovery.NewMembership(a.replicator, discfg)
+	})
 	return err
 }
 
