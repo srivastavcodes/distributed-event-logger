@@ -15,7 +15,7 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	collection := map[string]func(t *testing.T, rootClient, nobodyClient protolog.LogClient, config *Config){
+	collection := map[string]func(t *testing.T, rootClient protolog.LogClient, config *Config){
 		"produce/consume a message to/from the log succeeds": testProduceConsume,
 		"produce/consume stream succeeds":                    testProduceConsumeStream,
 		"consume past log boundary fails":                    testConsumePastBoundary,
@@ -139,7 +139,7 @@ func testConsumePastBoundary(t *testing.T, client protolog.LogClient, _ *Config)
 	require.Equalf(t, got, want, "got err: %v, want: %v", got, want)
 }
 
-func testProduceConsumeStream(t *testing.T, client protolog.LogClient, config *Config) {
+func testProduceConsumeStream(t *testing.T, client protolog.LogClient, _ *Config) {
 	ctx := context.Background()
 
 	records := []*protolog.Record{{
