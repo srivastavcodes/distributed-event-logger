@@ -13,7 +13,8 @@ type Replicator struct {
 	DialOptions []grpc.DialOption
 	LocalServer protolog.LogClient
 
-	logger *zerolog.Logger
+	logger     zerolog.Logger
+	loggerInit sync.Once
 
 	mu          sync.Mutex
 	serversChan map[string]chan struct{}
@@ -119,9 +120,9 @@ func (r *Replicator) logError(err error, msg string, addr string) {
 
 // init lazily initializes the server map.
 func (r *Replicator) init() {
-	if r.logger == nil {
-		*r.logger = zerolog.New(zerolog.NewConsoleWriter()).With().Timestamp().Logger()
-	}
+	r.loggerInit.Do(func() {
+		r.logger = zerolog.New(zerolog.NewConsoleWriter()).With().Timestamp().Logger()
+	})
 	if r.serversChan == nil {
 		r.serversChan = make(map[string]chan struct{})
 	}
