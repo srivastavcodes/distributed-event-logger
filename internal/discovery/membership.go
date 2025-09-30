@@ -1,9 +1,10 @@
 package discovery
 
 import (
+	"net"
+
 	"github.com/hashicorp/serf/serf"
 	"github.com/rs/zerolog"
-	"net"
 )
 
 // Handler represents some component in our service that needs to know
@@ -125,7 +126,8 @@ func (m *Membership) eventHandler() {
 			}
 		default:
 			// Handle any other event types gracefully
-			m.logger.Debug().Any("event", e).Msg("unhandled serf event")
+			m.logger.Debug().Any("event-type", e.EventType()).
+				Any("event", e).Msg("unhandled serf event")
 		}
 	}
 }
