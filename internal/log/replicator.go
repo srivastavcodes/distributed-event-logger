@@ -111,11 +111,13 @@ func (r *Replicator) Leave(name string) error {
 	return nil
 }
 
+// logError logs the error. TODO: expose an error channel to users.
 func (r *Replicator) logError(err error, msg string, addr string) {
 	r.logger.Error().Err(err).
 		Str("addr", addr).Msg(msg)
 }
 
+// init lazily initializes the server map.
 func (r *Replicator) init() {
 	if r.logger == nil {
 		*r.logger = zerolog.New(zerolog.NewConsoleWriter()).With().Timestamp().Logger()
@@ -128,6 +130,9 @@ func (r *Replicator) init() {
 	}
 }
 
+// Close closes the replicator so it doesn't replicate new servers that join
+// the cluster, and it stops replicating existing servers by causing the
+// replicate go-routine to return.
 func (r *Replicator) Close() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
