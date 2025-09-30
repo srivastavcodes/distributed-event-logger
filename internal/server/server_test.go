@@ -2,13 +2,11 @@ package server
 
 import (
 	"context"
-	"github.com/srivastavcodes/distributed-event-logger/internal/auth"
 	"github.com/srivastavcodes/distributed-event-logger/internal/config"
 	"github.com/srivastavcodes/distributed-event-logger/internal/log"
 	"github.com/srivastavcodes/distributed-event-logger/protolog/v1"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 	"net"
@@ -21,18 +19,17 @@ func TestServer(t *testing.T) {
 		"produce/consume a message to/from the log succeeds": testProduceConsume,
 		"produce/consume stream succeeds":                    testProduceConsumeStream,
 		"consume past log boundary fails":                    testConsumePastBoundary,
-		"unauthorized fails":                                 testUnauthorized,
 	}
 	for scenario, fn := range collection {
 		t.Run(scenario, func(t *testing.T) {
-			rootClient, nobodyClient, cfg, teardown := setupTest(t, nil)
+			rootClient, cfg, teardown := setupTest(t, nil)
 			defer teardown()
-			fn(t, rootClient, nobodyClient, cfg)
+			fn(t, rootClient, cfg)
 		})
 	}
 }
 
-func setupTest(t *testing.T, fn func(cfg *Config)) (protolog.LogClient, protolog.LogClient, *Config, func()) {
+func setupTest(t *testing.T, fn func(cfg *Config)) (protolog.LogClient, *Config, func()) {
 	t.Helper()
 
 	listener, err := net.Listen("tcp", "127.0.0.1:")
@@ -56,12 +53,8 @@ func setupTest(t *testing.T, fn func(cfg *Config)) (protolog.LogClient, protolog
 		return conn, client, opts
 	}
 	rootConn, rootClient, _ := newClient(
-		"../../"+config.RootClientCertFile,
-		"../../"+config.RootClientKeyFile,
-	)
-	nobodyConn, nobodyClient, _ := newClient(
-		"../../"+config.NobodyClientCertFile,
-		"../../"+config.NobodyClientKeyFile,
+		"../../"+config.ClientCertFile,
+		"../../"+config.ClientKeyFile,
 	)
 	serverTLSConfig, err := config.SetupTLSConfig(config.TLSConfig{
 		CertFile:      "../../" + config.ServerCertFile,
@@ -79,14 +72,8 @@ func setupTest(t *testing.T, fn func(cfg *Config)) (protolog.LogClient, protolog
 	clog, err := log.NewLog(dir, log.Config{})
 	require.NoError(t, err)
 
-	var (
-		model  = "../../" + config.ACLModelFile
-		policy = "../../" + config.ACLPolicyFile
-	)
-	authorizer := auth.NewAuthorizer(model, policy)
 	cfg := &Config{
-		CommitLog:  clog,
-		Authorizer: authorizer,
+		CommitLog: clog,
 	}
 	if fn != nil {
 		fn(cfg)
@@ -96,16 +83,15 @@ func setupTest(t *testing.T, fn func(cfg *Config)) (protolog.LogClient, protolog
 	go func() {
 		_ = server.Serve(listener)
 	}()
-	return rootClient, nobodyClient, cfg, func() {
+	return rootClient, cfg, func() {
 		server.Stop()
 		rootConn.Close()
-		nobodyConn.Close()
 		clog.Remove()
 		listener.Close()
 	}
 }
 
-func testProduceConsume(t *testing.T, client, _ protolog.LogClient, _ *Config) {
+func testProduceConsume(t *testing.T, client protolog.LogClient, _ *Config) {
 	ctx := context.Background()
 
 	want := &protolog.Record{
@@ -127,7 +113,7 @@ func testProduceConsume(t *testing.T, client, _ protolog.LogClient, _ *Config) {
 	require.Equal(t, want.Offset, consume.Record.Offset)
 }
 
-func testConsumePastBoundary(t *testing.T, client, _ protolog.LogClient, config *Config) {
+func testConsumePastBoundary(t *testing.T, client protolog.LogClient, _ *Config) {
 	ctx := context.Background()
 
 	prodReq := &protolog.ProduceRequest{
@@ -153,7 +139,7 @@ func testConsumePastBoundary(t *testing.T, client, _ protolog.LogClient, config 
 	require.Equalf(t, got, want, "got err: %v, want: %v", got, want)
 }
 
-func testProduceConsumeStream(t *testing.T, client, _ protolog.LogClient, config *Config) {
+func testProduceConsumeStream(t *testing.T, client protolog.LogClient, config *Config) {
 	ctx := context.Background()
 
 	records := []*protolog.Record{{
@@ -192,26 +178,4 @@ func testProduceConsumeStream(t *testing.T, client, _ protolog.LogClient, config
 				})
 		}
 	}
-}
-
-func testUnauthorized(t *testing.T, _, client protolog.LogClient, config *Config) {
-	prodReq := &protolog.ProduceRequest{
-		Record: &protolog.Record{
-			Value: []byte("hello world"),
-		},
-	}
-	produce, err := client.Produce(context.Background(), prodReq)
-	require.Nil(t, produce, "produce response should be nil")
-
-	gotCode, wantCode := status.Code(err), codes.PermissionDenied
-	require.Equal(t, gotCode, wantCode)
-
-	consReq := &protolog.ConsumeRequest{
-		Offset: 0,
-	}
-	consume, err := client.Consume(context.Background(), consReq)
-	require.Nil(t, consume, "consume response should be nil")
-
-	gotCode, wantCode = status.Code(err), codes.PermissionDenied
-	require.Equal(t, gotCode, wantCode)
 }
