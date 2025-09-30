@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"github.com/srivastavcodes/distributed-event-logger/internal/auth"
 	"github.com/srivastavcodes/distributed-event-logger/internal/config"
 	"github.com/srivastavcodes/distributed-event-logger/internal/log"
 	"github.com/srivastavcodes/distributed-event-logger/protolog/v1"
@@ -78,7 +79,15 @@ func setupTest(t *testing.T, fn func(cfg *Config)) (protolog.LogClient, protolog
 	clog, err := log.NewLog(dir, log.Config{})
 	require.NoError(t, err)
 
-	cfg := &Config{CommitLog: clog}
+	var (
+		model  = "../../" + config.ACLModelFile
+		policy = "../../" + config.ACLPolicyFile
+	)
+	authorizer := auth.NewAuthorizer(model, policy)
+	cfg := &Config{
+		CommitLog:  clog,
+		Authorizer: authorizer,
+	}
 	if fn != nil {
 		fn(cfg)
 	}

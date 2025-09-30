@@ -5,6 +5,7 @@ go 1.24
 require (
 	github.com/casbin/casbin/v2 v2.127.0
 	github.com/edsrzf/mmap-go v1.2.0
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.2
 	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.11.1
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250707201910-8d1bb00bc6a7

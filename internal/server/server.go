@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/auth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -19,10 +20,17 @@ const (
 )
 
 func NewGRPCServer(config *Config, opts ...grpc.ServerOption) (*grpc.Server, error) {
-	var (
-		gsrv     = grpc.NewServer(opts...)
-		srv, err = newGrpcServer(config)
+	opts = append(opts,
+		grpc.ChainStreamInterceptor(
+			grpc_auth.StreamServerInterceptor(authenticate),
+		),
+		grpc.ChainUnaryInterceptor(
+			grpc_auth.UnaryServerInterceptor(authenticate),
+		),
 	)
+	gsrv := grpc.NewServer(opts...)
+
+	srv, err := newGrpcServer(config)
 	if err != nil {
 		return nil, err
 	}
