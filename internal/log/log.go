@@ -182,9 +182,9 @@ type originReader struct {
 	offset int64
 }
 
-// Read reads len(p) bytes into (p) from originReader's current
-// offset; increments offset by number of bytes read.
-// Returns number of bytes read.
+// Read reads len(p) bytes into (p) from originReader's current offset;
+// increments offset by number of bytes read. Returns number of bytes
+// read.
 func (o *originReader) Read(p []byte) (int, error) {
 	n, err := o.ReadAt(p, o.offset)
 	o.offset += int64(n)
@@ -225,8 +225,8 @@ func (l *Log) Close() error {
 	return nil
 }
 
-// Reset removes the log and then creates a new log
-// to replace it.
+// Reset removes the existing log (wipes it from memory) and then
+// creates a new log to replace it.
 func (l *Log) Reset() error {
 	if err := l.Remove(); err != nil {
 		return err
