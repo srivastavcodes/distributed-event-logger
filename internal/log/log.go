@@ -120,8 +120,8 @@ func (l *Log) Read(off uint64) (*protolog.Record, error) {
 	return s.Read(off)
 }
 
-// newSegment creates a new segment, appends that segment to the log's slice
-// of segments, and makes the new segment the active segment.
+// newSegment creates a new Segment, appends it to the log's slice
+// of segments, and makes the new Segment the active Segment.
 func (l *Log) newSegment(off uint64) error {
 	s, err := newSegment(l.Directory, off, l.Config)
 	if err != nil {
