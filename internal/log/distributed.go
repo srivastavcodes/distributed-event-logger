@@ -242,6 +242,24 @@ func (dl *DistributedLog) Close() error {
 	return dl.log.Close()
 }
 
+func (dl *DistributedLog) GetServers() ([]*protolog.Server, error) {
+	future := dl.raft.GetConfiguration()
+	if err := future.Error(); err != nil {
+		return nil, err
+	}
+	var servers []*protolog.Server
+	for _, server := range future.Configuration().Servers {
+		leaderAddress, _ := dl.raft.LeaderWithID()
+
+		servers = append(servers, &protolog.Server{
+			Id:       string(server.ID),
+			RpcAddr:  string(server.Address),
+			IsLeader: leaderAddress == server.Address,
+		})
+	}
+	return servers, nil
+}
+
 var _ raft.FSM = (*fsm)(nil)
 
 type RequestType uint8
