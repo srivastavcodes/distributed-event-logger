@@ -14,6 +14,7 @@ import (
 	"github.com/travisjeffery/go-dynaport"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
 )
 
 func TestAgent(t *testing.T) {
@@ -42,7 +43,7 @@ func TestAgent(t *testing.T) {
 			bindAddr = fmt.Sprintf("%s:%d", "127.0.0.1", ports[0])
 			rpcPort  = ports[1]
 		)
-		dataDir, err := os.MkdirTemp("./", "agent-test-log")
+		dataDir, err := os.MkdirTemp("./", "agent-test-dlog")
 		require.NoError(t, err)
 
 		var startJoinAddrs []string
@@ -56,6 +57,7 @@ func TestAgent(t *testing.T) {
 			BindAddr:        bindAddr,
 			RPCPort:         rpcPort,
 			NodeName:        fmt.Sprintf("%d", i),
+			Bootstrap:       i == 0,
 			StartJoinAddrs:  startJoinAddrs,
 		})
 		require.NoError(t, err)
@@ -99,6 +101,16 @@ func TestAgent(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, consRes.Record.Value, []byte("foo"))
+
+	consRes, err = leaderClient.Consume(context.Background(), &protolog.ConsumeRequest{
+		Offset: prodRes.Offset + 1,
+	})
+	require.Nil(t, consRes)
+	require.Error(t, err)
+
+	got := status.Code(err)
+	want := status.Code(protolog.ErrOffsetOutOfRange{}.GRPCStatus().Err())
+	require.Equal(t, got, want)
 }
 
 func client(t *testing.T, agent *Agent, tlsConfig *tls.Config) protolog.LogClient {

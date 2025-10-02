@@ -1,32 +1,36 @@
 package agent
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"sync"
+	"time"
 
+	"github.com/hashicorp/raft"
 	"github.com/rs/zerolog"
 	log2 "github.com/rs/zerolog/log"
+	"github.com/soheilhy/cmux"
 	"github.com/srivastavcodes/distributed-event-logger/internal/discovery"
 	"github.com/srivastavcodes/distributed-event-logger/internal/log"
 	"github.com/srivastavcodes/distributed-event-logger/internal/server"
-	"github.com/srivastavcodes/distributed-event-logger/protolog/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
 
 // Agent runs on every service instance, setting up and connecting all the
-// different components. The struct references each component (log, server,
+// different components. The struct references each component (dlog, server,
 // membership, replicator) that the Agent manages.
 type Agent struct {
 	Config
 
-	log        *log.Log
+	mux        cmux.CMux
+	dlog       *log.DistributedLog
 	server     *grpc.Server
 	membership *discovery.Membership
-	replicator *log.Replicator
 
 	shutdown     bool
 	shutdownChan chan struct{}
@@ -41,6 +45,7 @@ type Config struct {
 	BindAddr        string
 	RPCPort         int
 	NodeName        string
+	Bootstrap       bool
 	LogConfig       log.Config
 	StartJoinAddrs  []string
 }
@@ -63,6 +68,7 @@ func NewAgent(config Config) (*Agent, error) {
 	}
 	setup := []func() error{
 		agent.setupLogger,
+		agent.setupMux,
 		agent.setupLog,
 		agent.setupServer,
 		agent.setupMembership,
@@ -72,7 +78,23 @@ func NewAgent(config Config) (*Agent, error) {
 			return nil, err
 		}
 	}
+	go agent.serve()
 	return agent, nil
+}
+
+// setupMux creates a listener on our rpc address that'll accept both raft
+// and grpc connections and then creates the mux with the listener.
+// The mux will accept connections on that listener and match connections
+// based on the configured rules.
+func (a *Agent) setupMux() error {
+	rpcAddr := fmt.Sprintf(":%d", a.Config.RPCPort)
+
+	listener, err := net.Listen("tcp", rpcAddr)
+	if err != nil {
+		return err
+	}
+	a.mux = cmux.New(listener)
+	return nil
 }
 
 // setupLogger configures the global logger to write debug messages
@@ -83,11 +105,35 @@ func (a *Agent) setupLogger() error {
 	return nil
 }
 
-// setupLog creates the distributed log that stores and manages
-// all the records on this node using the configured data directory.
+// setupLog creates the distributed dlog that stores and manages all
+// the records on this node using the configured data directory.
 func (a *Agent) setupLog() error {
+	raftLn := a.mux.Match(func(reader io.Reader) bool {
+		b := make([]byte, 1)
+		if _, err := reader.Read(b); err != nil {
+			return false
+		}
+		connType := []byte{byte(log.RaftRPC)}
+		return bytes.Compare(b, connType) == 0
+	})
+	var logConfig log.Config
+
+	logConfig.Raft.StreamLayer = log.NewStreamLayer(
+		raftLn,
+		a.ServerTLSConfig,
+		a.PeerTLSConfig,
+	)
+	logConfig.Raft.LocalID = raft.ServerID(a.Config.NodeName)
+	logConfig.Raft.Bootstrap = a.Config.Bootstrap
+
 	var err error
-	a.log, err = log.NewLog(a.Config.DataDir, a.LogConfig)
+	a.dlog, err = log.NewDistributedLog(a.Config.DataDir, logConfig)
+	if err != nil {
+		return err
+	}
+	if a.Config.Bootstrap {
+		err = a.dlog.WaitForLeader(3 * time.Second)
+	}
 	return err
 }
 
@@ -96,7 +142,7 @@ func (a *Agent) setupLog() error {
 // requests in a background goroutine.
 func (a *Agent) setupServer() error {
 	serverConfig := &server.Config{
-		CommitLog: a.log,
+		CommitLog: a.dlog,
 	}
 	var opts []grpc.ServerOption
 
@@ -110,54 +156,35 @@ func (a *Agent) setupServer() error {
 	if err != nil {
 		return err
 	}
-	rpcAddr, err := a.RPCAddr()
-	if err != nil {
-		return err
-	}
-	listen, err := net.Listen("tcp", rpcAddr)
-	if err != nil {
-		return err
-	}
+	// Because we've multiplexed two connection types (raft and grpc) and we
+	// added a matcher for the raft connections, we know all other conns must
+	// be grpc connections. cmux.Any() matches any connection.
+	grpcLn := a.mux.Match(cmux.Any())
 	go func() {
-		if err := a.server.Serve(listen); err != nil {
+		// We tell our grpc server to serve on the multiplexed listener.
+		if err := a.server.Serve(grpcLn); err != nil {
 			_ = a.Shutdown()
 		}
 	}()
-	return nil
+	return err
 }
 
-// setupMembership sets up node discovery along with log replication.
+// setupMembership sets up node discovery along with dlog replication.
 //
 // It creates a replicator to sync logs between nodes and configures
 // membership discovery so nodes can find each other in the cluster.
 func (a *Agent) setupMembership() error {
-	rpcAddr, err := a.RPCAddr()
+	rpcAddr, err := a.Config.RPCAddr()
 	if err != nil {
 		return err
 	}
-	var opts []grpc.DialOption
-
-	if a.PeerTLSConfig != nil {
-		creds := credentials.NewTLS(a.PeerTLSConfig)
-		opts = append(opts, grpc.WithTransportCredentials(creds))
-	}
-	conn, err := grpc.NewClient(rpcAddr, opts...)
-	if err != nil {
-		return err
-	}
-	client := protolog.NewLogClient(conn)
-
-	a.replicator = &log.Replicator{
-		DialOptions: opts,
-		LocalServer: client,
-	}
-	a.membership, err = discovery.NewMembership(a.replicator, discovery.Config{
+	a.membership, err = discovery.NewMembership(a.dlog, discovery.Config{
 		NodeName: a.Config.NodeName,
 		BindAddr: a.Config.BindAddr,
 		Tags: map[string]string{
 			"rpc_addr": rpcAddr,
 		},
-		StartJoinAddrs: a.StartJoinAddrs,
+		StartJoinAddrs: a.Config.StartJoinAddrs,
 	})
 	return err
 }
@@ -176,17 +203,26 @@ func (a *Agent) Shutdown() error {
 	close(a.shutdownChan)
 	shutdown := []func() error{
 		a.membership.Leave,
-		a.replicator.Close,
 		func() error {
 			a.server.GracefulStop()
 			return nil
 		},
-		a.log.Close,
+		a.dlog.Close,
 	}
 	for _, fn := range shutdown {
 		if err := fn(); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// server starts multiplexing the listener and is blocking;
+// should be called in a goroutine.
+func (a *Agent) serve() error {
+	if err := a.mux.Serve(); err != nil {
+		_ = a.Shutdown()
+		return err
 	}
 	return nil
 }
