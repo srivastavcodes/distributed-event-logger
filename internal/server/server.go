@@ -24,8 +24,13 @@ type CommitLog interface {
 	Read(uint64) (*protolog.Record, error)
 }
 
+type GetServerer interface {
+	GetServers() ([]*protolog.Server, error)
+}
+
 type Config struct {
-	CommitLog CommitLog
+	CommitLog   CommitLog
+	GetServerer GetServerer
 }
 
 var _ protolog.LogServer = (*grpcServer)(nil)
@@ -103,4 +108,12 @@ func (s *grpcServer) ConsumeStream(req *protolog.ConsumeRequest, stream protolog
 		}
 		req.Offset++
 	}
+}
+
+func (s *grpcServer) GetServers(_ context.Context, _ *protolog.GetServersRequest) (*protolog.GetServersResponse, error) {
+	servers, err := s.GetServerer.GetServers()
+	if err != nil {
+		return nil, err
+	}
+	return &protolog.GetServersResponse{Servers: servers}, nil
 }

@@ -142,7 +142,8 @@ func (a *Agent) setupLog() error {
 // requests in a background goroutine.
 func (a *Agent) setupServer() error {
 	serverConfig := &server.Config{
-		CommitLog: a.dlog,
+		CommitLog:   a.dlog,
+		GetServerer: a.dlog,
 	}
 	var opts []grpc.ServerOption
 
