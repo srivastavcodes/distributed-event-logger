@@ -1,0 +1,104 @@
+package log
+
+import (
+	"fmt"
+	"net"
+	"os"
+	"reflect"
+	"strconv"
+	"testing"
+	"time"
+
+	"github.com/hashicorp/raft"
+	"github.com/srivastavcodes/distributed-event-logger/protolog/v1"
+	"github.com/stretchr/testify/require"
+	"github.com/travisjeffery/go-dynaport"
+)
+
+func TestMultipleNodes(t *testing.T) {
+	var (
+		nodeCount = 3
+		ports     = dynaport.Get(nodeCount)
+
+		dlogs    []*DistributedLog
+		err      error
+		dataDirs []string
+	)
+	defer func() {
+		for _, dir := range dataDirs {
+			os.RemoveAll(dir)
+		}
+	}()
+	for i := 0; i < nodeCount; i++ {
+		dataDir, err := os.MkdirTemp("./", "distributed-log-test")
+		require.NoError(t, err)
+		dataDirs = append(dataDirs, dataDir)
+
+		listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", ports[i]))
+		require.NoError(t, err)
+
+		var config Config
+		config.Raft.StreamLayer = NewStreamLayer(listener, nil, nil)
+		config.Raft.LocalID = raft.ServerID(strconv.Itoa(ports[i]))
+		config.Raft.HeartbeatTimeout = 50 * time.Millisecond
+		config.Raft.ElectionTimeout = 50 * time.Millisecond
+		config.Raft.LeaderLeaseTimeout = 50 * time.Millisecond
+		config.Raft.CommitTimeout = 5 * time.Millisecond
+
+		if i == 0 {
+			config.Raft.Bootstrap = true
+		}
+		dl, err := NewDistributedLog(dataDir, config)
+		require.NoError(t, err)
+
+		if i != 0 {
+			err = dlogs[0].Join(strconv.Itoa(i), listener.Addr().String())
+		} else {
+			err = dl.WaitForLeader(3 * time.Second)
+			require.NoError(t, err)
+		}
+		dlogs = append(dlogs, dl)
+	}
+	records := []*protolog.Record{
+		{Value: []byte("first")},
+		{Value: []byte("second")},
+	}
+	for _, record := range records {
+		off, err := dlogs[0].Append(record)
+		require.NoError(t, err)
+
+		require.Eventually(t, func() bool {
+			for j := 0; j < nodeCount; j++ {
+				got, err := dlogs[j].Read(off)
+				if err != nil {
+					return false
+				}
+				record.Offset = off
+				if !reflect.DeepEqual(got.Value, record.Value) {
+					return false
+				}
+			}
+			return true
+		}, 500*time.Millisecond, 50*time.Millisecond)
+	}
+	err = dlogs[0].Leave("1")
+	require.NoError(t, err)
+
+	time.Sleep(50 * time.Millisecond)
+
+	off, err := dlogs[0].Append(&protolog.Record{
+		Value: []byte("third"),
+	})
+	require.NoError(t, err)
+
+	time.Sleep(50 * time.Millisecond)
+
+	record, err := dlogs[1].Read(off)
+	require.IsType(t, protolog.ErrOffsetOutOfRange{}, err)
+	require.Nil(t, record)
+
+	record, err = dlogs[2].Read(off)
+	require.NoError(t, err)
+	require.Equal(t, []byte("third"), record.Value)
+	require.Equal(t, off, record.Offset)
+}

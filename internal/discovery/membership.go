@@ -1,8 +1,10 @@
 package discovery
 
 import (
+	"errors"
 	"net"
 
+	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 	"github.com/rs/zerolog"
 )
@@ -149,9 +151,15 @@ func (m *Membership) Leave() error {
 }
 
 // logError logs the given error and message.
+//
+// In case the error is raft.ErrNotLeader, it is logged at the Debug level
+// and would be a good candidate for removal.
 func (m *Membership) logError(err error, msg string, member serf.Member) {
-	m.logger.Error().
-		Err(err).
+	log := m.logger.Error()
+	if errors.Is(err, raft.ErrNotLeader) {
+		log = m.logger.Debug()
+	}
+	log.Err(err).
 		Str("name", member.Name).
 		Str("rpc_addr", member.Tags["rpc_addr"]).Msg(msg)
 }
