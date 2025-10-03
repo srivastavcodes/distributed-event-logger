@@ -42,7 +42,7 @@ func (p *Picker) Build(buildInfo base.PickerBuildInfo) balancer.Picker {
 	return p
 }
 
-// Pick takes in a balancer.PickInfo provided by grpc internally containing
+// Pick takes in a balancer.PickInfo provided by grpc (internally) containing
 // the rpc's name and context to help the picker know what sub-connections
 // to pick. Header metadata can be read from the context.
 //

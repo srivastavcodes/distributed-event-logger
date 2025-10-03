@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/srivastavcodes/distributed-event-logger/internal/config"
+	"github.com/srivastavcodes/distributed-event-logger/internal/loadbalancer"
 	"github.com/srivastavcodes/distributed-event-logger/protolog/v1"
 	"github.com/stretchr/testify/require"
 	"github.com/travisjeffery/go-dynaport"
@@ -82,6 +83,9 @@ func TestAgent(t *testing.T) {
 	prodRes, err := leaderClient.Produce(context.Background(), prodReq)
 	require.NoError(t, err)
 
+	// wait for replication to finish
+	time.Sleep(3 * time.Second)
+
 	consReq := &protolog.ConsumeRequest{
 		Offset: prodRes.Offset,
 	}
@@ -89,8 +93,6 @@ func TestAgent(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, consRes.Record.Value, []byte("foo"))
-
-	time.Sleep(3 * time.Second)
 
 	// follower has the same value?
 	followerClient := client(t, agents[1], peerTLSConfig)
@@ -122,7 +124,10 @@ func client(t *testing.T, agent *Agent, tlsConfig *tls.Config) protolog.LogClien
 	rpcAddr, err := agent.RPCAddr()
 	require.NoError(t, err)
 
-	conn, err := grpc.NewClient(rpcAddr, opts...)
+	conn, err := grpc.NewClient(
+		fmt.Sprintf("%s://%s", loadbalancer.Name, rpcAddr),
+		opts...,
+	)
 	require.NoError(t, err)
 
 	return protolog.NewLogClient(conn)
