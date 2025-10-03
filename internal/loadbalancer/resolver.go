@@ -51,7 +51,7 @@ func (r *Resolver) Build(target resolver.Target, conn resolver.ClientConn, opts 
 	)
 	var err error
 
-	r.resolverConn, err = grpc.NewClient(target.Endpoint(), dialOpts...)
+	r.resolverConn, err = grpc.NewClient(target.URL.Host, dialOpts...)
 	if err != nil {
 		return nil, err
 	}
