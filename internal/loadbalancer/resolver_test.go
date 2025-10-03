@@ -105,10 +105,10 @@ func (c *clientConn) UpdateState(state resolver.State) error {
 	return nil
 }
 
-func (c *clientConn) ReportError(err error) {}
+func (c *clientConn) ReportError(_ error) {}
 
-func (c *clientConn) NewAddress(addrs []resolver.Address) {}
+func (c *clientConn) NewAddress(_ []resolver.Address) {}
 
-func (c *clientConn) NewServiceConfig(config string) {}
+func (c *clientConn) NewServiceConfig(_ string) {}
 
-func (c *clientConn) ParseServiceConfig(config string) *serviceconfig.ParseResult { return nil }
+func (c *clientConn) ParseServiceConfig(_ string) *serviceconfig.ParseResult { return nil }
