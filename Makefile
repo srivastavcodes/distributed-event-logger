@@ -37,3 +37,8 @@ compile:
 .PHONY: test
 test:
 	go test -race -v ./internal/$(PKG)
+
+TAG ?= 0.0.1
+
+build-docker:
+	docker build -t github.com/srivastavcodes/cubelog:$(TAG) .
