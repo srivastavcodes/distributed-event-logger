@@ -1,60 +1,73 @@
-# DistributedLog 🚧
+# Distributed Event Logger
 
-> **Work in Progress**: Building a distributed event-log service.
+A small distributed commit log service. Nodes form a cluster, elect a leader (Raft), replicate log entries, and let clients produce
+and consume records over gRPC. Simple, direct, and hackable.
 
-## What We've Built So Far
+## Features
 
-### Core Storage Engine
+- Raft-backed replicated log (append only)
+- Log segmented on disk (store + index per segment)
+- Membership + gossip via Serf
+- One TCP port multiplexed for Raft + gRPC (cmux)
+- Custom gRPC name resolver + load balancer (leader writes / follower reads)
+- Streaming Produce + streaming Consume
+- Snapshots + restore (FSM snapshotting)
+- Optional TLS for intra-cluster + client connections
 
-**Store Layer**: Low-level file operations with buffered writes for performance
+## Layout
 
-- Record format: 8-byte length header + variable-length data
-- Thread-safe operations with mutex protection
-- Efficient append and read operations
+- `internal/log` low-level log: segments, index (mmap), store (length-prefixed), raft integration
+- `internal/discovery` Serf membership; joins trigger Raft voter adds
+- `internal/server` gRPC service (Produce / Consume / Streams / GetServers)
+- `internal/agent` wires everything: mux, raft log, server, discovery
+- `internal/loadbalancer` custom resolver + picker (routes Produce to leader; Consume round-robins followers)
+- `protolog/v1` protobuf API (records, requests, responses)
 
-**Index Layer**: Memory-mapped file indexing for fast record lookups
+## Log Model
 
-- Maps record offsets to file positions
-- Fixed-size entries (12 bytes: 4-byte offset + 8-byte position)
-- Pre-allocated file space with memory mapping for performance
+Each record:
 
-### Key Features Implemented
+- `Offset` monotonically increasing
+- Stored as: [8-byte length]
+  Segments roll when index or store size hits configured max.
+  Indexes map relative offsets -> store positions.
 
-- **Binary Encoding**: Big-endian format for cross-platform compatibility
-- **Buffered I/O**: Reduces system calls for better performance with frequent writes
-- **Memory Mapping**: Fast index access using mmap for efficient lookups
-- **Thread Safety**: Mutex-protected operations for concurrent access
+## Raft Integration
 
-## Quick Start
+- FSM applies Append requests
+- LogStore backed by same segment system (re-uses append/read)
+- Snapshot = full log bytes stream
+- Restore rebuilds segments from snapshot
+- Bootstrap flag elects initial single-node leader
 
-```bash
-git clone https://github.com/srivastavcodes/distributed-event-logger.git
-cd distributed-event-logger
-go run .
-```
+## gRPC & LB
 
-Server starts on `http://localhost:8080`
+- Custom resolver scheme: `cubelog://host:port`
+- Resolver calls `GetServers` to fetch cluster view
+- Picker:
+    - Produce / ProduceStream -> leader
+    - Consume / ConsumeStream -> followers (round-robin)
+    - Fallback to leader if no followers
+
+## TLS (optional)
+
+Provide:
+
+- `ServerTLSConfig` for incoming
+- `PeerTLSConfig` for Raft dialing
 
 ## Testing
 
+The implementation includes comprehensive tests for each component:
+
 ```bash
-# Produce
-curl -X POST http://localhost:8080/log \
-  -H "Content-Type: application/json" \
-  -d '{"record": {"value": "SGVsbG8gV29ybGQ="}}'
+  # Run tests on whole packages at once.
+  make test PKG=(package name) 
 
-# Consume  
-curl "http://localhost:8080/log?offset=0"
+# Run specific tests for a singular component.
+  make test <filename> 
 ```
 
-## Structure
+## License
 
-```
-├── cmd/server/          # Entry point
-├── internal/log/        # Storage (log, segments, index, store)
-└── proto/v1/            # Future gRPC definitions
-```
-
-## Goal
-
-Building a distributed commit log (like Kafka) with clustering, replication, service discovery, and production deployment.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
