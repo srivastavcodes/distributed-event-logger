@@ -1,7 +1,7 @@
 # Distributed Event Logger
 
 A small distributed commit log service. Nodes form a cluster, elect a leader (Raft), replicate log entries, and let clients produce
-and consume records over gRPC. Simple, direct, and hackable.
+and consume records over gRPC.
 
 ## Features
 
