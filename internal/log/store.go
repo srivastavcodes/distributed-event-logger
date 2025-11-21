@@ -3,6 +3,7 @@ package log
 import (
 	"bufio"
 	"encoding/binary"
+	"fmt"
 	"os"
 	"sync"
 )
@@ -16,8 +17,8 @@ var enc = binary.BigEndian
 // store is a wrapper around a file with two APIs to append and read
 // bytes - to and from the file.
 type store struct {
-	*os.File
-	mu sync.Mutex
+	file *os.File
+	mu   sync.Mutex
 
 	// size is the length of the file in bytes.
 	size uint64
@@ -27,14 +28,14 @@ type store struct {
 // newStore creates a store for a given file. store.size is retrieved from
 // file's existing size.
 func newStore(file *os.File) (*store, error) {
-	fi, err := os.Stat(file.Name())
+	f, err := os.Stat(file.Name())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("newStore failed to stat file: %w", err)
 	}
-	size := uint64(fi.Size())
+	size := uint64(f.Size())
 
 	return &store{
-		File: file,
+		file: file,
 		size: size,
 		buf:  bufio.NewWriter(file),
 	}, nil
@@ -69,24 +70,25 @@ func (s *store) Read(pos uint64) ([]byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// makes sure all the data is written before reading
 	if err := s.buf.Flush(); err != nil {
 		return nil, err
 	}
 	size := make([]byte, lenWidth)
 
-	// reads the size of the record at offset(pos) for slice allocation.
-	_, err := s.File.ReadAt(size, int64(pos))
+	// reads 8 bits[pos + 8] to get the size of the record at offset
+	_, err := s.file.ReadAt(size, int64(pos))
 	if err != nil {
 		return nil, err
 	}
-	bytes := make([]byte, enc.Uint64(size))
+	b := make([]byte, enc.Uint64(size))
 
 	// reads after the offset+lenWidth(big endian representation of the size of the record).
-	_, err = s.File.ReadAt(bytes, int64(pos+lenWidth))
+	_, err = s.file.ReadAt(b, int64(pos+lenWidth))
 	if err != nil {
 		return nil, err
 	}
-	return bytes, nil
+	return b, nil
 }
 
 // ReadAt reads len(p) bytes into (p) beginning at the (off) offset in the
@@ -95,10 +97,11 @@ func (s *store) ReadAt(p []byte, off int64) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// makes sure all the data is written before reading
 	if err := s.buf.Flush(); err != nil {
 		return 0, err
 	}
-	return s.File.ReadAt(p, off)
+	return s.file.ReadAt(p, off)
 }
 
 // Close persists any buffered data before closing the file.
@@ -109,5 +112,5 @@ func (s *store) Close() error {
 	if err := s.buf.Flush(); err != nil {
 		return err
 	}
-	return s.File.Close()
+	return s.file.Close()
 }

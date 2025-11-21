@@ -15,7 +15,7 @@ var (
 func TestStoreAppendRead(t *testing.T) {
 	file, err := os.CreateTemp("./", "store_append_read_test")
 	require.NoError(t, err)
-	defer os.Remove(file.Name())
+	defer func() { _ = os.Remove(file.Name()) }()
 
 	s, err := newStore(file)
 	require.NoError(t, err)
@@ -71,7 +71,7 @@ func testReadAt(t *testing.T, s *store) {
 func TestStoreClose(t *testing.T) {
 	file, err := os.CreateTemp("./", "store_close_test")
 	require.NoError(t, err)
-	defer os.Remove(file.Name())
+	defer func() { _ = os.Remove(file.Name()) }()
 
 	s, err := newStore(file)
 	require.NoError(t, err)

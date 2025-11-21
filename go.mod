@@ -1,6 +1,6 @@
 module github.com/srivastavcodes/distributed-event-logger
 
-go 1.24
+go 1.25
 
 require (
 	github.com/edsrzf/mmap-go v1.2.0
