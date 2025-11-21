@@ -28,8 +28,8 @@ type segment struct {
 
 // newSegment is called when the log needs to add a new segment, such as when
 // the current active segment hits its max size. Index and Store files are
-// created if they don't exist yet with os.O_APPEND flag to make the OS append
-// to it when writing.
+// created with os.O_CREATE if they don't exist yet along with os.O_APPEND flag
+// to make the OS append to it when writing.
 func newSegment(dir string, baseOffset uint64, config Config) (*segment, error) {
 	s := &segment{
 		config:     config,
@@ -79,14 +79,13 @@ func newSegment(dir string, baseOffset uint64, config Config) (*segment, error) 
 // Append writes the record to the segment and returns the newly appended
 // record's offset.
 func (s *segment) Append(record *protolog.Record) (off uint64, err error) {
-	var cur = s.nextOffset
-	record.Offset = cur
+	record.Offset = s.nextOffset
 
-	bytes, err := proto.Marshal(record)
+	rb, err := proto.Marshal(record)
 	if err != nil {
 		return 0, err
 	}
-	_, pos, err := s.store.Append(bytes)
+	_, pos, err := s.store.Append(rb)
 	if err != nil {
 		return 0, err
 	}
@@ -95,8 +94,8 @@ func (s *segment) Append(record *protolog.Record) (off uint64, err error) {
 	if err != nil {
 		return 0, err
 	}
-	s.nextOffset++
-	return cur, nil
+	defer func() { s.nextOffset++ }()
+	return s.nextOffset, nil
 }
 
 // Read returns the record for the given offset.
@@ -106,13 +105,13 @@ func (s *segment) Read(off uint64) (*protolog.Record, error) {
 	if err != nil {
 		return nil, err
 	}
-	bytes, err := s.store.Read(pos)
+	rb, err := s.store.Read(pos)
 	if err != nil {
 		return nil, err
 	}
 	record := &protolog.Record{}
 
-	err = proto.Unmarshal(bytes, record)
+	err = proto.Unmarshal(rb, record)
 	return record, err
 }
 
@@ -135,14 +134,13 @@ func (s *segment) Remove() error {
 	if err := s.Close(); err != nil {
 		return err
 	}
-	var err error
-
-	err = os.Remove(s.index.Name())
-	if err != nil {
+	if err := os.Remove(s.index.Name()); err != nil {
 		return err
 	}
-	err = os.Remove(s.store.Name())
-	return err
+	if err := os.Remove(s.store.Name()); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Close closes the index and the store for this segment.

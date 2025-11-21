@@ -65,6 +65,11 @@ func (s *store) Append(bytes []byte) (n uint64, pos uint64, err error) {
 	return uint64(w), pos, nil
 }
 
+// Name returns the store's file path.
+func (s *store) Name() string {
+	return s.file.Name()
+}
+
 // Read returns the record stored at the given position.
 func (s *store) Read(pos uint64) ([]byte, error) {
 	s.mu.Lock()

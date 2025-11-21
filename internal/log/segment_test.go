@@ -11,7 +11,7 @@ import (
 
 func TestSegment(t *testing.T) {
 	dir, _ := os.MkdirTemp("./", "segment_test")
-	defer os.RemoveAll(dir)
+	defer func() { _ = os.RemoveAll(dir) }()
 
 	var config Config
 	config.Segment.MaxStoreBytes = 1024
