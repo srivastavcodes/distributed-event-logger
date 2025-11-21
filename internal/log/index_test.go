@@ -11,9 +11,9 @@ import (
 func TestIndex(t *testing.T) {
 	file, err := os.CreateTemp("./", "index_test")
 	require.NoError(t, err)
-	defer os.Remove(file.Name())
+	defer func() { _ = os.Remove(file.Name()) }()
 
-	config := Config{}
+	var config Config
 	config.Segment.MaxIndexBytes = 1024
 
 	idx, err := newIndex(file, config)
