@@ -23,7 +23,7 @@ func TestLog(t *testing.T) {
 		t.Run(scenario, func(t *testing.T) {
 			dir, err := os.MkdirTemp("./", "store-test")
 			require.NoError(t, err)
-			defer os.RemoveAll(dir)
+			defer func() { _ = os.RemoveAll(dir) }()
 
 			config := Config{}
 			config.Segment.MaxStoreBytes = 32
@@ -116,7 +116,7 @@ func testTruncate(t *testing.T, log *Log) {
 		_, err := log.Append(writeRecord)
 		require.NoError(t, err)
 	}
-	err := log.Truncate(1)
+	err := log.TruncatePrev(1)
 	require.NoError(t, err)
 
 	_, err = log.Read(0)

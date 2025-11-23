@@ -2,6 +2,7 @@ package log
 
 import (
 	"cmp"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -53,11 +54,14 @@ func (l *Log) setup() error {
 	var baseOffsets []uint64
 
 	for _, entry := range entries {
-		ext := filepath.Ext(entry.Name())
 		var (
-			strOff    = strings.TrimSuffix(entry.Name(), ext)
-			offset, _ = strconv.ParseUint(strOff, 10, 0)
+			ext    = filepath.Ext(entry.Name())
+			strOff = strings.TrimSuffix(entry.Name(), ext)
 		)
+		offset, err := strconv.ParseUint(strOff, 0, 0)
+		if err != nil {
+			return fmt.Errorf("invalid offset %s: %s", strOff, err)
+		}
 		baseOffsets = append(baseOffsets, offset)
 	}
 	slices.SortFunc(baseOffsets, cmp.Compare)
@@ -132,10 +136,10 @@ func (l *Log) newSegment(off uint64) error {
 	return nil
 }
 
-// Truncate removes all segments whose highest offset is lower than
-// (lowest). Truncate should be called on segments whose data has
+// TruncatePrev removes all segments whose highest offset is lower than
+// (lowest). TruncatePrev should be called on segments whose data has
 // already been processed by then.
-func (l *Log) Truncate(lowest uint64) error {
+func (l *Log) TruncatePrev(lowest uint64) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 

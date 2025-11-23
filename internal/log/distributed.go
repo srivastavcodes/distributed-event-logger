@@ -435,7 +435,7 @@ func (l *logStore) StoreLogs(records []*raft.Log) error {
 // DeleteRange removes the records between the offsets - it's to remove
 // records that are old or stored in a snapshot.
 func (l *logStore) DeleteRange(_, max uint64) error {
-	return l.Truncate(max)
+	return l.TruncatePrev(max)
 }
 
 var _ raft.StreamLayer = (*StreamLayer)(nil)
