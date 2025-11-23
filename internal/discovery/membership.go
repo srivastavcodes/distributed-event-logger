@@ -153,11 +153,11 @@ func (m *Membership) Leave() error {
 // In case the error is raft.ErrNotLeader, it is logged at the Debug level
 // and would be a good candidate for removal.
 func (m *Membership) logError(err error, msg string, member serf.Member) {
-	log := m.logger.Error()
+	logErr := m.logger.Error()
 	if errors.Is(err, raft.ErrNotLeader) {
-		log = m.logger.Debug()
+		logErr = m.logger.Debug()
 	}
-	log.Err(err).
+	logErr.Err(err).
 		Str("name", member.Name).
 		Str("rpc_addr", member.Tags["rpc_addr"]).Msg(msg)
 }
