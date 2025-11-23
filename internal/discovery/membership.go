@@ -17,13 +17,10 @@ type Handler interface {
 }
 
 type Config struct {
-	Tags     map[string]string
 	NodeName string
+	Tags     map[string]string
 	BindAddr string
-
-	// StartJoinAddrs is how you configure new nodes to join an existing
-	// cluster.
-	StartJoinAddrs []string
+	JoinAddr []string // JoinAddr is how you configure new nodes to join an existing cluster.
 }
 
 /*
@@ -87,9 +84,9 @@ func (m *Membership) setupSerf() error {
 		return err
 	}
 	go m.eventHandler()
-	if m.StartJoinAddrs != nil {
+	if m.JoinAddr != nil {
 		// this is where this instance of the server will join the cluster.
-		_, err = m.serf.Join(m.StartJoinAddrs, true)
+		_, err = m.serf.Join(m.JoinAddr, true)
 		if err != nil {
 			return err
 		}
@@ -128,7 +125,8 @@ func (m *Membership) eventHandler() {
 			}
 		default:
 			// Handle any other event types gracefully
-			m.logger.Debug().Any("event-type", e.EventType()).
+			m.logger.Debug().
+				Any("event-type", e.EventType()).
 				Any("event", e).Msg("unhandled serf event")
 		}
 	}

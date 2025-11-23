@@ -78,7 +78,7 @@ func setupMembers(t *testing.T, members []*Membership) ([]*Membership, *handler)
 		hdlr.joins = make(chan map[string]string, 3)
 		hdlr.leaves = make(chan string, 3)
 	} else {
-		config.StartJoinAddrs = []string{members[0].BindAddr}
+		config.JoinAddr = []string{members[0].BindAddr}
 	}
 	mem, err := NewMembership(&hdlr, config)
 	require.NoError(t, err)
