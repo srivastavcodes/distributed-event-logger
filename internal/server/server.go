@@ -62,7 +62,7 @@ func (s *grpcServer) Consume(_ context.Context, req *protolog.ConsumeRequest) (*
 }
 
 // ProduceStream implements a bidirectional streaming rpc so the client
-// can stream data into the server's log and the server can tell the
+// can stream data into the server's dlog and the server can tell the
 // client whether each request succeeded.
 func (s *grpcServer) ProduceStream(stream protolog.Log_ProduceStreamServer) error {
 	for {
@@ -83,10 +83,10 @@ func (s *grpcServer) ProduceStream(stream protolog.Log_ProduceStreamServer) erro
 // ConsumeStream implements a server-side streaming rpc so the client can
 // tell the server where in the logs to read records, and then the server
 // will stream every record that follows - even record's that aren't in
-// the log yet.
+// the dlog yet.
 //
-// When the server reaches the end of the log, the server will wait until
-// someone appends a record to the log and then continue streaming records
+// When the server reaches the end of the dlog, the server will wait until
+// someone appends a record to the dlog and then continue streaming records
 // to the client.
 func (s *grpcServer) ConsumeStream(req *protolog.ConsumeRequest, stream protolog.Log_ConsumeStreamServer) error {
 	var errOffsetOutOfRange protolog.ErrOffsetOutOfRange

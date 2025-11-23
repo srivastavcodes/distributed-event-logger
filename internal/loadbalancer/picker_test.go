@@ -13,8 +13,8 @@ import (
 func TestPickerNoSubConnAvailable(t *testing.T) {
 	var picker Picker
 	for _, method := range []string{
-		"/log.vX.Log/Produce",
-		"/log.vX.Log/Consume",
+		"/dlog.vX.Log/Produce",
+		"/dlog.vX.Log/Consume",
 	} {
 		info := balancer.PickInfo{FullMethodName: method}
 
@@ -28,7 +28,7 @@ func TestPickerNoSubConnAvailable(t *testing.T) {
 func TestPickerProducesToLeader(t *testing.T) {
 	picker, subConns := setupTest()
 	info := balancer.PickInfo{
-		FullMethodName: "/log.vX.Log/Produce",
+		FullMethodName: "/dlog.vX.Log/Produce",
 	}
 	for i := 0; i < 5; i++ {
 		gotPick, err := picker.Pick(info)
@@ -40,7 +40,7 @@ func TestPickerProducesToLeader(t *testing.T) {
 func TestPickerConsumesFromFollowers(t *testing.T) {
 	picker, subConns := setupTest()
 	info := balancer.PickInfo{
-		FullMethodName: "/log.vX.Log/Consume",
+		FullMethodName: "/dlog.vX.Log/Consume",
 	}
 	for i := 0; i < 5; i++ {
 		pick, err := picker.Pick(info)

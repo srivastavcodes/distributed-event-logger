@@ -1,4 +1,4 @@
-package log
+package dlog
 
 import (
 	"fmt"
@@ -26,11 +26,11 @@ func TestMultipleNodes(t *testing.T) {
 	)
 	defer func() {
 		for _, dir := range dataDirs {
-			os.RemoveAll(dir)
+			_ = os.RemoveAll(dir)
 		}
 	}()
 	for i := 0; i < nodeCount; i++ {
-		dataDir, err := os.MkdirTemp("./", "distributed-log-test")
+		dataDir, err := os.MkdirTemp("./", "distributed-dlog-test")
 		require.NoError(t, err)
 		dataDirs = append(dataDirs, dataDir)
 

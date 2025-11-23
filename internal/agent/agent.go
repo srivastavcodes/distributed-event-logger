@@ -12,23 +12,23 @@ import (
 
 	"github.com/hashicorp/raft"
 	"github.com/rs/zerolog"
-	log2 "github.com/rs/zerolog/log"
+	zlog "github.com/rs/zerolog/log"
 	"github.com/soheilhy/cmux"
 	"github.com/srivastavcodes/distributed-event-logger/internal/discovery"
-	"github.com/srivastavcodes/distributed-event-logger/internal/log"
+	"github.com/srivastavcodes/distributed-event-logger/internal/dlog"
 	"github.com/srivastavcodes/distributed-event-logger/internal/server"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
 
 // Agent runs on every service instance, setting up and connecting all the
-// different components. The struct references each component (dlog, server,
+// different components. The struct references each component (dlogger, server,
 // membership, replicator) that the Agent manages.
 type Agent struct {
 	Config
 
 	mux        cmux.CMux
-	dlog       *log.DistributedLog
+	dlogger    *dlog.DistributedLog
 	server     *grpc.Server
 	membership *discovery.Membership
 
@@ -46,7 +46,7 @@ type Config struct {
 	RPCPort         int
 	NodeName        string
 	Bootstrap       bool
-	LogConfig       log.Config
+	LogConfig       dlog.Config
 	StartJoinAddrs  []string
 }
 
@@ -78,7 +78,12 @@ func NewAgent(config Config) (*Agent, error) {
 			return nil, err
 		}
 	}
-	go agent.serve()
+	go func() {
+		err := agent.serve()
+		if err != nil {
+			zlog.Err(err).Msg("agent failed to serve")
+		}
+	}()
 	return agent, nil
 }
 
@@ -100,12 +105,12 @@ func (a *Agent) setupMux() error {
 // setupLogger configures the global logger to write debug messages
 // to stderr with colored console output for easy reading.
 func (a *Agent) setupLogger() error {
-	log2.Logger = log2.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	zlog.Logger = zlog.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	return nil
 }
 
-// setupLog creates the distributed dlog that stores and manages all
+// setupLog creates the distributed dlogger that stores and manages all
 // the records on this node using the configured data directory.
 func (a *Agent) setupLog() error {
 	raftLn := a.mux.Match(func(reader io.Reader) bool {
@@ -113,12 +118,12 @@ func (a *Agent) setupLog() error {
 		if _, err := reader.Read(b); err != nil {
 			return false
 		}
-		connType := []byte{byte(log.RaftRPC)}
+		connType := []byte{byte(dlog.RaftRPC)}
 		return bytes.Compare(b, connType) == 0
 	})
-	var logConfig log.Config
+	var logConfig dlog.Config
 
-	logConfig.Raft.StreamLayer = log.NewStreamLayer(
+	logConfig.Raft.StreamLayer = dlog.NewStreamLayer(
 		raftLn,
 		a.ServerTLSConfig,
 		a.PeerTLSConfig,
@@ -127,12 +132,12 @@ func (a *Agent) setupLog() error {
 	logConfig.Raft.Bootstrap = a.Config.Bootstrap
 
 	var err error
-	a.dlog, err = log.NewDistributedLog(a.Config.DataDir, logConfig)
+	a.dlogger, err = dlog.NewDistributedLog(a.Config.DataDir, logConfig)
 	if err != nil {
 		return err
 	}
 	if a.Config.Bootstrap {
-		err = a.dlog.WaitForLeader(3 * time.Second)
+		err = a.dlogger.WaitForLeader(3 * time.Second)
 	}
 	return err
 }
@@ -142,8 +147,8 @@ func (a *Agent) setupLog() error {
 // requests in a background goroutine.
 func (a *Agent) setupServer() error {
 	serverConfig := &server.Config{
-		CommitLog:   a.dlog,
-		GetServerer: a.dlog,
+		CommitLog:   a.dlogger,
+		GetServerer: a.dlogger,
 	}
 	var opts []grpc.ServerOption
 
@@ -170,7 +175,7 @@ func (a *Agent) setupServer() error {
 	return err
 }
 
-// setupMembership sets up node discovery along with dlog replication.
+// setupMembership sets up node discovery along with dlogger replication.
 //
 // It creates a replicator to sync logs between nodes and configures
 // membership discovery so nodes can find each other in the cluster.
@@ -179,7 +184,7 @@ func (a *Agent) setupMembership() error {
 	if err != nil {
 		return err
 	}
-	a.membership, err = discovery.NewMembership(a.dlog, discovery.Config{
+	a.membership, err = discovery.NewMembership(a.dlogger, discovery.Config{
 		NodeName: a.Config.NodeName,
 		BindAddr: a.Config.BindAddr,
 		Tags: map[string]string{
@@ -208,7 +213,7 @@ func (a *Agent) Shutdown() error {
 			a.server.GracefulStop()
 			return nil
 		},
-		a.dlog.Close,
+		a.dlogger.Close,
 	}
 	for _, fn := range shutdown {
 		if err := fn(); err != nil {

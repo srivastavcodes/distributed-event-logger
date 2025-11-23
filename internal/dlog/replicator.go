@@ -1,4 +1,4 @@
-package log
+package dlog
 
 import (
 	"context"
@@ -43,7 +43,7 @@ func (r *Replicator) Join(name string, addr string) error {
 	return nil
 }
 
-// replicate consumes the log from the discovered server in a stream and then
+// replicate consumes the dlog from the discovered server in a stream and then
 // produces to the local server to save a copy.
 //
 // The messages are replicated from other servers until that server fails or

@@ -44,7 +44,7 @@ func TestAgent(t *testing.T) {
 			bindAddr = fmt.Sprintf("%s:%d", "127.0.0.1", ports[0])
 			rpcPort  = ports[1]
 		)
-		dataDir, err := os.MkdirTemp("./", "agent-test-dlog")
+		dataDir, err := os.MkdirTemp("./", "agent-test-dlogger")
 		require.NoError(t, err)
 
 		var startJoinAddrs []string

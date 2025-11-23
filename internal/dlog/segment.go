@@ -1,4 +1,4 @@
-package log
+package dlog
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ import (
 // segment wraps the index and store types to co-ordinate operations
 // across the two.
 //
-// When log appends the record to the active segment,
+// When dlog appends the record to the active segment,
 // the segment needs to write the data to its store and add a new
 // entry in the index.
 //
@@ -26,7 +26,7 @@ type segment struct {
 	config     Config
 }
 
-// newSegment is called when the log needs to add a new segment, such as when
+// newSegment is called when the dlog needs to add a new segment, such as when
 // the current active segment hits its max size. Index and Store files are
 // created with os.O_CREATE if they don't exist yet along with os.O_APPEND flag
 // to make the OS append to it when writing.
@@ -119,7 +119,7 @@ func (s *segment) Read(off uint64) (*protolog.Record, error) {
 // too much to the store or the index.
 //
 // If you wrote a small number of long logs, you'd hit the StoreBytes limit; if you
-// wrote a large number of small logs, you'd hit the IndexByte limit. The log uses
+// wrote a large number of small logs, you'd hit the IndexByte limit. The dlog uses
 // this method to know it needs to create a new segment.
 func (s *segment) IsMaxed() bool {
 	var (

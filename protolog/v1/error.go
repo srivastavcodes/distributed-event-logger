@@ -15,7 +15,7 @@ type ErrOffsetOutOfRange struct {
 func (e ErrOffsetOutOfRange) GRPCStatus() *status.Status {
 	var (
 		sts = status.New(codes.NotFound, fmt.Sprintf("offset out of range: %d", e.Offset))
-		msg = fmt.Sprintf("The requested offset is outside the log's range: %d", e.Offset)
+		msg = fmt.Sprintf("The requested offset is outside the dlog's range: %d", e.Offset)
 	)
 	details := &errdetails.LocalizedMessage{
 		Locale:  "en-US",

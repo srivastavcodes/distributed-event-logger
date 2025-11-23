@@ -103,7 +103,7 @@ func (m *Membership) setupSerf() error {
 // When a node joins or leave the cluster, Serf sends an event to all the nodes,
 // including the node that joins or leaves the cluster.
 // A check is performed to make sure the event isn't from the local server itself,
-// preventing the server acting upon itself -- we don't want the server try and
+// preventing the server acting upon itself -- we don't want the server to try and
 // replicate itself!
 func (m *Membership) eventHandler() {
 	// Serf may coalesce multiple member updates in to one event. For example

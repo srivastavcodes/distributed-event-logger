@@ -2,23 +2,24 @@ package server
 
 import (
 	"context"
+	"net"
+	"os"
+	"testing"
+
 	"github.com/srivastavcodes/distributed-event-logger/internal/config"
-	"github.com/srivastavcodes/distributed-event-logger/internal/log"
+	"github.com/srivastavcodes/distributed-event-logger/internal/dlog"
 	"github.com/srivastavcodes/distributed-event-logger/protolog/v1"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
-	"net"
-	"os"
-	"testing"
 )
 
 func TestServer(t *testing.T) {
 	collection := map[string]func(t *testing.T, rootClient protolog.LogClient, config *Config){
-		"produce/consume a message to/from the log succeeds": testProduceConsume,
-		"produce/consume stream succeeds":                    testProduceConsumeStream,
-		"consume past log boundary fails":                    testConsumePastBoundary,
+		"produce/consume a message to/from the dlog succeeds": testProduceConsume,
+		"produce/consume stream succeeds":                     testProduceConsumeStream,
+		"consume past dlog boundary fails":                    testConsumePastBoundary,
 	}
 	for scenario, fn := range collection {
 		t.Run(scenario, func(t *testing.T) {
@@ -69,7 +70,7 @@ func setupTest(t *testing.T, fn func(cfg *Config)) (protolog.LogClient, *Config,
 	dir, err := os.MkdirTemp("./", "server-test")
 	require.NoError(t, err)
 
-	clog, err := log.NewLog(dir, log.Config{})
+	clog, err := dlog.NewLog(dir, dlog.Config{})
 	require.NoError(t, err)
 
 	cfg := &Config{

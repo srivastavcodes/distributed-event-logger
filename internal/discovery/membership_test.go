@@ -2,15 +2,13 @@ package discovery
 
 import (
 	"fmt"
-	"github.com/hashicorp/serf/serf"
-	"github.com/rs/zerolog"
-	"github.com/stretchr/testify/require"
-	"github.com/travisjeffery/go-dynaport"
 	"testing"
 	"time"
-)
 
-var logger = zerolog.New(zerolog.NewConsoleWriter()).With().Timestamp().Logger()
+	"github.com/hashicorp/serf/serf"
+	"github.com/stretchr/testify/require"
+	"github.com/travisjeffery/go-dynaport"
+)
 
 type handler struct {
 	joins  chan map[string]string

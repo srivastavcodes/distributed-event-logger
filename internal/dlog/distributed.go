@@ -1,4 +1,4 @@
-package log
+package dlog
 
 import (
 	"bytes"
@@ -39,7 +39,7 @@ func NewDistributedLog(dataDir string, config Config) (*DistributedLog, error) {
 // setupLog creates the log for this server, where this server will store
 // the user's records.
 func (dl *DistributedLog) setupLog(dataDir string) error {
-	logDir := filepath.Join(dataDir, "log")
+	logDir := filepath.Join(dataDir, "dlog")
 
 	err := os.MkdirAll(logDir, 0755)
 	if err != nil {
@@ -60,7 +60,7 @@ func (dl *DistributedLog) setupLog(dataDir string) error {
 func (dl *DistributedLog) setupRaft(dataDir string) error {
 	var (
 		sm     = &fsm{log: dl.log}
-		logDir = filepath.Join(dataDir, "raft", "log")
+		logDir = filepath.Join(dataDir, "raft", "dlog")
 	)
 	err := os.MkdirAll(logDir, 0755)
 	if err != nil {
@@ -125,9 +125,9 @@ func (dl *DistributedLog) setupRaft(dataDir string) error {
 	return err
 }
 
-// Append appends the record to the log. Unlike the store, where we appended
-// the record directly to the server's log, we tell raft to apply a command
-// that tells the FSM to append the record to the log.
+// Append appends the record to the dlog. Unlike the store, where we appended
+// the record directly to the server's dlog, we tell raft to apply a command
+// that tells the FSM to append the record to the dlog.
 func (dl *DistributedLog) Append(record *protolog.Record) (uint64, error) {
 	res, err := dl.apply(AppendRequestType, &protolog.ProduceRequest{
 		Record: record,
@@ -166,7 +166,7 @@ func (dl *DistributedLog) apply(reqType RequestType, req proto.Message) (any, er
 	return res, nil
 }
 
-// Read reads the record for the offset from the server's log. When you're okay
+// Read reads the record for the offset from the server's dlog. When you're okay
 // with relaxed consistency, read operations need not go through raft. When you
 // need strong consistency, where reads must be up to date with writer, then it
 // must go through raft (but reads will become slower and less efficient).
@@ -233,7 +233,7 @@ func (dl *DistributedLog) WaitForLeader(timeout time.Duration) error {
 	}
 }
 
-// Close shuts down the raft instance and closes the local log.
+// Close shuts down the raft instance and closes the local dlog.
 func (dl *DistributedLog) Close() error {
 	future := dl.raft.Shutdown()
 	if err := future.Error(); err != nil {
@@ -306,8 +306,8 @@ func (f *fsm) applyAppend(b []byte) any {
 }
 
 // Snapshot returns an FSMSnapshot that represent a point-in-time snapshot
-// of the FSM's state. In this case that state is our FSM's log, so call
-// Reader() to return an io.Reader that will read all the log's data.
+// of the FSM's state. In this case that state is our FSM's dlog, so call
+// Reader() to return an io.Reader that will read all the dlog's data.
 func (f *fsm) Snapshot() (raft.FSMSnapshot, error) {
 	r := f.log.Reader()
 	return &snapshot{reader: r}, nil
@@ -364,9 +364,9 @@ func (f *fsm) Restore(r io.ReadCloser) error {
 		if err != nil {
 			return err
 		}
-		// Here we reset the log and configure the initial offset to the first record's
-		// offset we read from the snapshot so the log's offsets match.
-		// Then we read the records in the snapshot and append them to our new log.
+		// Here we reset the dlog and configure the initial offset to the first record's
+		// offset we read from the snapshot so the dlog's offsets match.
+		// Then we read the records in the snapshot and append them to our new dlog.
 		if i == 0 {
 			f.log.Config.Segment.InitialOffset = record.Offset
 			if err := f.log.Reset(); err != nil {

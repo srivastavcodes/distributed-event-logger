@@ -1,4 +1,4 @@
-package log
+package dlog
 
 import (
 	"cmp"
@@ -43,8 +43,8 @@ func NewLog(dir string, config Config) (*Log, error) {
 	return log, log.setup()
 }
 
-// setup makes sure - the log is self-sufficient for setting itself up
-// for the segments that already exists on disk, and if the log has no
+// setup makes sure - the dlog is self-sufficient for setting itself up
+// for the segments that already exists on disk, and if the dlog has no
 // segments, it can bootstrap the initial segment.
 func (l *Log) setup() error {
 	entries, err := os.ReadDir(l.Directory)
@@ -84,7 +84,7 @@ func (l *Log) setup() error {
 	return err
 }
 
-// Append appends a record to the active segment of the log. A new segment
+// Append appends a record to the active segment of the dlog. A new segment
 // is created if current segment is at its max size.
 // This method is thread-safe with rwMutex synchronization.
 //
@@ -124,7 +124,7 @@ func (l *Log) Read(off uint64) (*protolog.Record, error) {
 	return s.Read(off)
 }
 
-// newSegment creates a new Segment, appends it to the log's slice
+// newSegment creates a new Segment, appends it to the dlog's slice
 // of segments, and makes the new Segment the active Segment.
 func (l *Log) newSegment(off uint64) error {
 	s, err := newSegment(l.Directory, off, l.Config)
@@ -159,10 +159,10 @@ func (l *Log) TruncatePrev(lowest uint64) error {
 
 /*
 We'll need Reader() when we implement consensus and need to support
-snapshots and restoring a log.
+snapshots and restoring a dlog.
 */
 
-// Reader returns an io.Reader to read the whole log.
+// Reader returns an io.Reader to read the whole dlog.
 func (l *Log) Reader() io.Reader {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
@@ -229,8 +229,8 @@ func (l *Log) Close() error {
 	return nil
 }
 
-// Reset removes the existing log (wipes it from memory) and then
-// creates a new log to replace it.
+// Reset removes the existing dlog (wipes it from memory) and then
+// creates a new dlog to replace it.
 func (l *Log) Reset() error {
 	if err := l.Remove(); err != nil {
 		return err
@@ -238,7 +238,7 @@ func (l *Log) Reset() error {
 	return l.setup()
 }
 
-// Remove closes the log and then removes its data.
+// Remove closes the dlog and then removes its data.
 func (l *Log) Remove() error {
 	if err := l.Close(); err != nil {
 		return err
